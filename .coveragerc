@@ -8,6 +8,7 @@ omit =
     */tests/*
 
 source = 
+    private/
     examples/
     sysbrokers/
     syscontrol/
