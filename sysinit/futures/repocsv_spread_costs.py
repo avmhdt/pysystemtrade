@@ -12,7 +12,7 @@ from sysdata.data_blob import dataBlob
 
 def copy_spread_costs_from_csv_to_mongo(data: dataBlob):
     data_out = mongoSpreadCostData(data.mongo_db)
-    data_in = csvSpreadCostData()
+    data_in = csvSpreadCostData(data.csv_data_paths['csvSpreadCostData'])
 
     print("Transferring from %s to %s" % (str(data_in), str(data_out)))
 
@@ -126,4 +126,10 @@ def process_deleted_instruments(data_out: spreadCostData, deleted_instruments: l
 if __name__ == "__main__":
     print("Transfer instrument config from csv to mongo DB")
     # modify flags as required
-    copy_spread_costs_from_csv_to_mongo(dataBlob())
+    spread_costs = dataBlob(
+        csv_data_paths=dict(
+            csvSpreadCostData='private.data.CME-all-futures-with-OI.csvconfig'
+        ),
+        class_list=[csvSpreadCostData]
+    )
+    copy_spread_costs_from_csv_to_mongo(spread_costs)
