@@ -206,4 +206,6 @@ if __name__ == "__main__":
     process_multiple_prices_all_instruments(
         csv_multiple_data_path=csv_multiple_data_path,
         csv_roll_data_path=csv_roll_data_path,
+        ADD_TO_ARCTIC=True,
+        ADD_TO_CSV=False,
     )
