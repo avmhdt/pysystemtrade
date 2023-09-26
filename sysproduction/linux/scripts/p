@@ -1,2 +1,4 @@
 . ~/.profile
+cd ~/pysystemtrade
+source venv/3.8.18/bin/activate
 python3 $SCRIPT_PATH/run.py $1

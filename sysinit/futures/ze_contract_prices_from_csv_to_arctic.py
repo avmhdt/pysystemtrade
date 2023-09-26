@@ -47,9 +47,8 @@ def init_arctic_with_csv_futures_contract_prices(
             input_column_mapping=ESIGNALCSVCOLMAP,
             input_skiprows=0,
             input_skipfooter=0,
-            apply_multiplier=row.Adjustment,
-            apply_inverse=False
         )
+
         init_arctic_with_csv_futures_contract_prices_for_code(
             instrument_code,
             '%s.%s' % (datapath, instrument_code),
@@ -76,6 +75,9 @@ def init_arctic_with_csv_futures_contract_prices_for_code(
 
     for contract_date_str, prices_for_contract in csv_price_dict.items():
         print("Processing %s" % contract_date_str)
+        print("Changing time to 23:00:00 for compatibility with IBKR data")
+        prices_for_contract['index'] = [x.replace(hour=23) for x in prices_for_contract.index]
+        prices_for_contract.set_index('index', inplace=True)
         print(".csv prices are \n %s" % str(prices_for_contract))
         contract = futuresContract(instrument_code, contract_date_str)
         print("Contract object is %s" % str(contract))

@@ -79,8 +79,12 @@ def dynamic_system(
 from systems.forecasting import Rules
 from systems.basesystem import System
 from systems.forecast_combine import ForecastCombine
-from systems.forecast_scale_cap import ForecastScaleCap
-from systems.rawdata import RawData
+# from systems.forecast_scale_cap import ForecastScaleCap
+from systems.provided.attenuate_vol.vol_attenuation_forecast_scale_cap import (
+    volAttenForecastScaleCap as ForecastScaleCap
+)
+# from systems.rawdata import RawData
+from systems.provided.rob_system.rawdata import myFuturesRawData as RawData
 from systems.positionsizing import PositionSizing
 from systems.portfolio import Portfolios
 from systems.provided.dynamic_small_system_optimise.optimised_positions_stage import (
