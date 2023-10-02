@@ -296,7 +296,7 @@ class ibPriceClient(ibContractsClient):
             durationStr=durationStr,
             barSizeSetting=barSizeSetting,
             whatToShow=whatToShow,
-            useRTH=True,
+            useRTH=False,  # True, ---------------------------------------------------------> ZE HERE!
             formatDate=2,
             timeout=TIMEOUT_SECONDS_ON_HISTORICAL_DATA,
         )

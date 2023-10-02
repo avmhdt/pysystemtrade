@@ -1,3 +1,4 @@
+import datetime # ZE HERE
 import pandas as pd
 from ib_insync import MarketOrder, Forex
 
@@ -12,7 +13,6 @@ from syscore.exceptions import missingContract, missingData
 
 from syscore.constants import arg_not_supplied
 from syscore.dateutils import Frequency, DAILY_PRICE_FREQ
-
 
 class ibFxClient(ibPriceClient):
     def broker_fx_balances(self, account_id: str = arg_not_supplied) -> dict:
@@ -89,7 +89,10 @@ class ibFxClient(ibPriceClient):
         fx_data = self._get_generic_data_for_contract(
             ibcontract, log=log, bar_freq=bar_freq, whatToShow="MIDPOINT"
         )
-
+        # ############################## ZE HERE
+        if fx_data.index[-1] > datetime.datetime.now() and bar_freq == DAILY_PRICE_FREQ: # if fx prices are indexed by closing time instead of opening time
+            fx_data.index = fx_data.index.shift(-1, freq='D')
+        # ############################## ZE HERE END
         return fx_data
 
     def ib_spotfx_contract(self, ccy1, ccy2="USD") -> Forex:
