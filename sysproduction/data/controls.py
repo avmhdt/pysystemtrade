@@ -882,3 +882,58 @@ def remove_overrides_for_stale_instruments_from_dict_of_overrides(
     )
 
     return filtered_dict
+
+
+class diagDelayDays(productionDataLayerGeneric):
+    pass
+    """
+    def _add_required_classes_to_data(self, data: dataBlob) -> dataBlob:
+        data.add_class_list([mongoDelayDaysData])
+        return data
+        
+    @property
+    def db_delay_days_data(self) -> delayDaysData:
+        return self.data.db_delay_days
+    
+    def get_dict_of_all_delays_in_db(self) -> dict:
+        dict_of_all_delays_in_db = self.db_delay_days_data.get_get_dict_of_all_delays()
+        # run checks and remove stale (0) delays here
+        # ...
+        return dict_of_all_delays
+        
+    def get_delay_days_for_stop_loss_override(self, override: Override) -> DelayDays:
+        key, delay_days_for_stop_loss_override = (
+            self.db_delay_days_data.get_delay_days_for_stop_loss_override(
+                override
+            )
+        )
+    
+        return delay_days_for_stop_loss_override
+        
+    """
+
+class updateDelayDays(productionDataLayerGeneric):
+    pass
+    """
+    def _add_required_classes_to_data(self, data: dataBlob) -> dataBlob:
+        data.add_class_list([mongoDelayDaysData])
+        return data
+        
+    @property
+    def db_delay_days_data(self) -> delayDaysData:
+        return self.data.db_delay_days
+        
+    def update_delay_days_for_override(self, override: Override):
+        delay_days_in_db = self.data.db_delay_days
+        key, delay_days_for_this_stop_loss_override = (
+            delay_days_in_db.get_delay_days_for_stop_loss_override(
+                stop_loss_override
+            )
+        )
+        delay_days_for_this_stop_loss_override.decrease()
+        delay_days_in_db.update_delay_days_for_override(key, delay_days_for_this_stop_loss_override)
+    
+    def delete_delay_days_for_override(self, override: Override):
+        self.db_delay_days_data.delete_delay_days_for_override(override)
+    
+    """

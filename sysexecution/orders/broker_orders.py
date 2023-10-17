@@ -32,7 +32,7 @@ from syscore.constants import success
 
 class brokerOrderType(orderType):
     def allowed_types(self):
-        return ["market", "limit", "balance_trade", "snap_mkt", "snap_mid", "snap_prim"]
+        return ["market", "limit", "balance_trade", "snap_mkt", "snap_mid", "snap_prim", "stop"]
 
 
 market_order_type = brokerOrderType("market")
@@ -46,6 +46,8 @@ snap_mkt_type = brokerOrderType("snap_mkt")
 snap_mid_type = brokerOrderType("snap_mid")
 snap_prim_type = brokerOrderType("snap_prim")
 
+## Stop orders for attaching stop loss to existing position
+stop_order_type = brokerOrderType("stop")
 
 class brokerOrder(Order):
     def __init__(
