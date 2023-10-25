@@ -14,7 +14,7 @@ class DelayDays(object):
         self._delay_days = value
 
     def __repr__(self):
-        return "Delay %d days" % self.delay_days
+        return "Delay %s days" % str(self.delay_days)
 
     @property
     def delay_days(self):
@@ -25,10 +25,13 @@ class DelayDays(object):
             self._delay_days -= 1
         else:
             raise Exception(
-                "Asked to decrease delay days when it was already %d."
-                % self.delay_days
+                "Asked to decrease delay days when it was already %s."
+                % str(self.delay_days)
             )
 
     @classmethod
     def no_delay(DelayDays):
-        return None
+        return DelayDays(DEFAULT_DELAY_DAYS)
+
+    def as_numeric_value(self):
+        return int(self.delay_days)

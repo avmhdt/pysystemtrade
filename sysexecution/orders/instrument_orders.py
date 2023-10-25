@@ -10,6 +10,7 @@ from sysexecution.orders.base_orders import (
     Order,
     tradeQuantity,
     orderType,
+    stopLossInfo
 )
 from sysexecution.orders.named_order_objects import no_order_id, no_children, no_parent
 from syslogging.logger import *
@@ -59,6 +60,7 @@ class instrumentOrder(Order):
         generated_datetime: datetime.datetime = None,
         manual_trade: bool = False,
         roll_order: bool = False,
+        stop_loss_info: stopLossInfo = None,
         **kwargs_not_used,
     ):
         """
@@ -85,6 +87,7 @@ class instrumentOrder(Order):
         :param generated_datetime: when order generated
         :param manual_trade: bool, was trade iniated manually
         :param roll_order: bool, is this a roll order
+        :param stop_loss_info: stopLossInfo
 
         """
         """
@@ -128,6 +131,7 @@ class instrumentOrder(Order):
             children=children,
             active=active,
             order_type=order_type,
+            stop_loss_info=stop_loss_info,
             **order_info,
         )
 
@@ -148,6 +152,7 @@ class instrumentOrder(Order):
         )
         active = order_as_dict.pop("active")
         order_type = instrumentOrderType(order_as_dict.pop("order_type", None))
+        stop_loss_info = order_as_dict.pop("stop_loss_info")
 
         order_info = order_as_dict
 
@@ -163,6 +168,7 @@ class instrumentOrder(Order):
             filled_price=filled_price,
             active=active,
             order_type=order_type,
+            stop_loss_info=stop_loss_info,
             **order_info,
         )
 

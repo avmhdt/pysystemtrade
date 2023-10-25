@@ -13,45 +13,56 @@ from sysdata.base_data import baseData
 from sysobjects.production.tradeable_object import instrumentStrategy
 from sysobjects.production.override import override_none
 
+
 class delayDaysData(baseData):
     def __init__(self, log=get_logger("Delay days")):
         super().__init__(log=log)
 
-    def get_current_delay_for_override(
-        self, override: Override
+    @property
+    def default_delay_days(self):
+        return DelayDays.no_delay()
+
+    def get_delay_days_for_stop_loss_override(
+        self, override_key: str
     ) -> DelayDays:
 
         try:
-            current_delay = self._get_current_delay_for_override_no_checking(override)
+            current_delay = self._get_current_delay_for_override_key(override_key)
         except missingData:
-            current_delay_object = DelayDays.no_delay()
-        else:
-            current_delay_object = DelayDays(current_delay)
+            current_delay = DelayDays.no_delay()
 
-        return current_delay_object
+        return current_delay
 
-    def _get_current_delay_for_override_no_checking(
-        self, override: Override
+    def _get_current_delay_for_override_key(
+        self, override_key: str
     ) -> int:
         raise NotImplementedError("Need to use inheriting class")
 
     def decrease_current_delay_for_override(
-        self, override: Override
+        self, override_key: str
     ):
         current_delay_for_override = (
-            self.get_current_delay_for_override(
-                override
+            self.get_delay_days_for_stop_loss_override(
+                override_key
             )
         )
 
         try:
             current_delay_for_override.decrease()
-        except Exception:
-            #  FIXME The following is a test, maybe remove later and replace with something else?
-            self.delete_delay_for_override(override)
+        except Exception as already_zero:
+            self.log.debug(already_zero)
+        else:
+            self.set_delay_days_for_stop_loss_override(
+                override_key, current_delay_for_override
+            )
 
-
-    def delete_delay_for_override(
-        self, override: Override
+    def set_delay_days_for_stop_loss_override(
+        self, override_key: str, new_delay: DelayDays
     ):
         raise NotImplementedError("Need to use inheriting class")
+
+    def delete_delay_days_for_stop_loss_override(
+        self, override_key: str
+    ):
+        raise NotImplementedError("Need to use inheriting class")
+

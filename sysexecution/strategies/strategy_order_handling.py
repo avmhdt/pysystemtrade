@@ -4,6 +4,7 @@ For each strategy gets the required trades per instrument
 It then passes these to the 'virtual' order queue
 So called because it deals with instrument level trades, not contract implementation
 """
+import numpy as np
 
 from sysexecution.orders.named_order_objects import zero_order
 from sysdata.data_blob import dataBlob
@@ -15,6 +16,9 @@ from sysexecution.order_stacks.instrument_order_stack import zeroOrderException
 from sysproduction.data.positions import diagPositions
 from sysproduction.data.orders import dataOrders
 from sysproduction.data.controls import diagOverrides, dataLocks, dataPositionLimits
+
+from sysdata.config.configdata import Config
+from sysexecution.orders.base_orders import stopLossInfo, NO_STOP_LOSS
 
 name_of_main_generator_method = "get_and_place_orders"
 
@@ -54,17 +58,32 @@ class orderGeneratorForStrategy(object):
     def order_stack(self):
         return self.data_orders.db_instrument_stack_data
 
+    """
+    @property
+    def config(self) -> Config:
+        return self.data.config
+
+    @property
+    def stop_loss_config(self):
+        stop_loss_config = self.config.get_element("stop_loss", None)
+        if stop_loss_config is None:
+            self.log.debug("Missing stop loss info from config, setting use_catastrophic to False")
+            stop_loss_config = dict(use_catastrophic=False)
+            
+        return stop_loss_config 
+    """
+
     def get_and_place_orders(self):
         # THIS IS THE MAIN FUNCTION THAT IS RUN
         order_list = self.get_required_orders()
         order_list_with_overrides = self.apply_overrides_and_position_limits(order_list)
-        self.update_stop_loss_overrides()   # ???
         order_list_with_stop_loss_info = (
             self.update_stop_loss_info_from_order_list(  # ???
                 order_list_with_overrides
             )
         )
         self.submit_order_list(order_list_with_stop_loss_info)
+        self.update_stop_loss_overrides()  # ???
 
     def get_required_orders(self) -> listOfOrders:
         raise Exception(
@@ -183,41 +202,40 @@ class orderGeneratorForStrategy(object):
         all_overrides = diag_overrides.get_dict_of_all_overrides_in_db_with_reasons()
         stop_loss_overrides = get_stop_loss_overrides_from_dict_of_all_overrides(all_overrides)
         
-        for key, stop_loss_override in stop_loss_overrides.items():
+        for override_key, stop_loss_override in stop_loss_overrides.items():
             delete_override = (
                 update_single_stop_loss_override_delay_days_and_return_if_zero(
-                    stop_loss_override
+                    override_key
                 )
             )
             if delete_override:
-                update_overrides.delete_override(key)
+                update_overrides.delete_override(override_key)
         
         """
 
     def update_single_stop_loss_override_delay_days_and_return_if_zero(
-        self, # override: Override
+        self, # override_key: str
     ):
         pass
         """
         update_delay_days = updateDelayDays(self.data)
-        update_delay_days.update_delay_days_for_override(override)
+        update_delay_days.decrease_delay_days_for_override(override_key)
         
         diag_delay_days = diagDelayDays(self.data)
         delay_days_for_this_stop_loss_override = (
             diag_delay_days.get_delay_days_for_stop_loss_override(
-                override
+                override_key
             )
         )
         delay_days_is_zero = (
             delay_days_for_this_stop_loss_override.is_zero()
         )
         if delay_days_is_zero:
-            update_delay_days.delete_delay_days_for_override(override)
+            update_delay_days.delete_delay_days_for_override(override_key)
         
         return delay_days_is_zero
             
         """
-
 
     def submit_order_list(self, order_list: listOfOrders):
         data_lock = dataLocks(self.data)
@@ -252,6 +270,49 @@ class orderGeneratorForStrategy(object):
                 instrument_order_id=order_id,
             )
 
+    def update_stop_loss_info_from_order_list(self, order_list: list) -> listOfOrders:
+        pass
+        """
+        order_list_with_stop_loss_info = listOfOrders()
+        
+        use_catastrophic = self.stop_loss_config["use_catastrophic"]
+        for order in order_list:
+            if use_catastrophic:
+                stop_loss_info_for_order = self.get_stop_loss_info_for_order(order)
+            else:
+                stop_loss_info_for_order = stopLossInfo(
+                    attach_stop_loss=NO_STOP_LOSS,
+                )
+                
+            new_order = order.append_stop_loss_info(stop_loss_info_for_order)
+            order_list_with_stop_loss_info.append(new_order)
+        
+        return order_list_with_stop_loss_info
+        """
+
+    def get_stop_loss_info_for_order(self, proposed_order: instrumentOrder) -> dict:
+        pass
+        """
+        diag_positions = diagPositions(self.data)
+
+        instrument_strategy = proposed_order.instrument_strategy
+
+        original_position = diag_positions.get_current_position_for_instrument_strategy(
+            instrument_strategy
+        )
+        
+        trade_quantity = proposed_order.trade.total_abs_qty()
+        
+        did_direction_change = did_direction_change(original_position, trade_quantity)
+        
+        stop_loss_info = (
+            stopLossInfo.from_trade_qyt_and_direction_change(
+                trade_quantity, direction_change        
+            )
+        )
+        
+        return stop_loss_info
+        """
 
 
 def get_stop_loss_overrides_from_dict_of_all_overrides(
@@ -271,5 +332,12 @@ def get_stop_loss_overrides_from_dict_of_all_overrides(
     return stop_loss_overrides
     """
 
-
+def did_direction_change(original_position: int, trade_quantity: int) -> bool:
+    pass
+    """
+    final_position = original_position + trade_quantity
+    did_direction_change = np.sign(final_position) != np.sign(original_position)
+    
+    return did_direction_change
+    """
 

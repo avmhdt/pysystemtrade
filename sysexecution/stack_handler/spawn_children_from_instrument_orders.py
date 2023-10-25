@@ -12,16 +12,20 @@ from sysobjects.contracts import futuresContract
 
 from sysproduction.data.contracts import dataContracts
 from sysproduction.data.positions import diagPositions
-from sysproduction.data.prices import modify_price_when_contract_has_changed
+from sysproduction.data.prices import (
+    modify_price_when_contract_has_changed,
+    diagPrices,
+)
 from sysproduction.data.controls import dataLocks
 
 from sysexecution.order_stacks.order_stack import orderStackData
-from sysexecution.orders.base_orders import Order
+from sysexecution.orders.base_orders import Order, stopLossInfo
 from sysexecution.orders.contract_orders import contractOrder, contractOrderType
 
 from sysexecution.orders.list_of_orders import listOfOrders
 from sysexecution.orders.instrument_orders import instrumentOrder, instrumentOrderType
 
+from sysexecution.orders.broker_orders import brokerOrder
 
 from sysexecution.algos.allocate_algo_to_order import (
     allocate_algo_to_list_of_contract_orders,
@@ -61,7 +65,7 @@ class stackHandlerForSpawning(stackHandlerCore):
             return None
 
         list_of_contract_orders = spawn_children_from_instrument_order(
-            self.data, instrument_order
+            self.data, instrument_order,    # self.stop_loss_broker_stack
         )
 
         log = instrument_order.log_with_attributes(self.log)
@@ -111,11 +115,11 @@ class stackHandlerForSpawning(stackHandlerCore):
 
 
 def spawn_children_from_instrument_order(
-    data: dataBlob, instrument_order: instrumentOrder
+    data: dataBlob, instrument_order: instrumentOrder, # stop_loss_broker_stack: StopLossBrokerOrderStackData,
 ):
     auto_update_roll_status(data=data, instrument_code=instrument_order.instrument_code)
     spawn_function = function_to_process_instrument(instrument_order.instrument_code)
-    list_of_contract_orders = spawn_function(data, instrument_order)
+    list_of_contract_orders = spawn_function(data, instrument_order)#, stop_loss_broker_stack)
     list_of_contract_orders = allocate_algo_to_list_of_contract_orders(
         data, list_of_contract_orders, instrument_order
     )
@@ -145,7 +149,7 @@ def function_to_process_instrument(instrument_code: str) -> Callable:
 
 
 def single_instrument_child_orders(
-    data: dataBlob, instrument_order: instrumentOrder
+    data: dataBlob, instrument_order: instrumentOrder,  # stop_loss_broker_stack: StopLossBrokerOrderStackData
 ) -> listOfOrders:
     """
     Generate child orders for a single instrument (not rolls)
@@ -162,7 +166,7 @@ def single_instrument_child_orders(
 
     # Get required contract(s) depending on roll status
     list_of_child_contract_dates_and_trades = (
-        get_required_contract_trade_for_instrument(data, instrument_order)
+        get_required_contract_trade_for_instrument(data, instrument_order)  # , stop_loss_broker_stack)
     )
 
     raw_list_of_contract_orders = (
@@ -207,11 +211,11 @@ def adjust_limit_orders_with_correct_prices(
     return list_of_contract_orders_with_adjusted_limit_prices
 
 
-contractIdAndTrade = namedtuple("contractIDAndTrade", ["contract_id", "trade"])
+contractIdAndTrade = namedtuple("contractIDAndTrade", ["contract_id", "trade", "stop_loss_info"])
 
 
 def get_required_contract_trade_for_instrument(
-    data: dataBlob, instrument_order: instrumentOrder
+    data: dataBlob, instrument_order: instrumentOrder, # , stop_loss_broker_stack: StopLossBrokerOrderStackData
 ) -> list:
     """
     Return the contract to trade for a given instrument
@@ -294,28 +298,62 @@ def get_required_contract_trade_for_instrument(
 
 
 def child_order_in_priced_contract_only(
-    data: dataBlob, instrument_order: instrumentOrder, log
+    data: dataBlob, instrument_order: instrumentOrder, # stop_loss_broker_stack: StopLossBrokerOrderStackData
 ):
     diag_contracts = dataContracts(data)
     instrument_code = instrument_order.instrument_code
     current_contract = diag_contracts.get_priced_contract_id(instrument_code)
     trade = instrument_order.as_single_trade_qty_or_error()
+
     log.debug(
         "No roll, allocating entire order %s to current contract %s"
         % (str(instrument_order), current_contract)
     )
-    return [contractIdAndTrade(current_contract, trade)]
+
+    """
+    instrument_order_stop_loss_info = instrument_order.stop_loss_info
+    current_contract_object = futuresContract(instrument_code, current_contract)
+    
+    try: # is there already a corresponding stop loss order? Means position in current_contract is not 0
+        existing_stop_loss_broker_order = (
+            find_stop_loss_broker_order_for_contract_in_stack(
+                current_contract_object, stop_loss_broker_stack
+            )
+        )
+    except missingData: #  No position in the current contract. Send new stop loss order with level from config
+        log = instrument_order.log_with_attributes(data.log)
+        stop_loss_info = add_stop_loss_level_and_delay_from_config_to_stop_loss_info(
+            data, instrument_order_stop_loss_info, log
+        )
+    elif instrument_order_stop_loss_info.attach_stop_loss == NEW_ORDER:  # Direction change
+        existing_position = (
+            existing_stop_loss_broker_order.trade.as_single_trade_qty_or_error()
+        )
+        stop_loss_info = stopLossInfo(
+            attach_stop_loss=NEW_ORDER,
+            change_order_by=trade+existing_position,
+            cancel_old_order=existing_stop_loss_broker_order,
+        )
+    else:
+        stop_loss_info = stopLossInfo(
+            attach_stop_loss=CHANGE_ORDER,
+            change_order_by=trade,
+        )
+    """
+    return [contractIdAndTrade(current_contract, trade, stop_loss_info)]
 
 
 def passive_roll_child_order(
     data: dataBlob,
     instrument_order: instrumentOrder,
+    # stop_loss_broker_stack: StopLossBrokerOrderStackData,
 ) -> list:
 
     log = instrument_order.log_with_attributes(data.log)
     diag_positions = diagPositions(data)
     instrument_code = instrument_order.instrument_code
     trade = instrument_order.trade
+    stop_loss_info = instrument_order.stop_loss_info
 
     diag_contracts = dataContracts(data)
     current_contract = diag_contracts.get_priced_contract_id(instrument_code)
@@ -333,7 +371,10 @@ def passive_roll_child_order(
             "Passive roll handling order %s, no position in current contract, entire trade in next contract %s"
             % (str(instrument_order), next_contract)
         )
-        return [contractIdAndTrade(next_contract, trade)]
+        stop_loss_info = add_stop_loss_level_and_delay_from_config_to_stop_loss_info(
+            data, stop_loss_info, log
+        )
+        return [contractIdAndTrade(next_contract, trade, stop_loss_info)]
 
     # ok still have a position in the current contract
     increasing_trade = sign(trade) == sign(position_current_contract)
@@ -344,7 +385,38 @@ def passive_roll_child_order(
             "Passive roll handling order %s, increasing trade, entire trade in next contract %s"
             % (str(instrument_order), next_contract)
         )
-        return [contractIdAndTrade(next_contract, trade)]
+        """
+        ######################
+        next_contract = futuresContract(instrument_code, next_contract)
+        
+        try: #  is there already a corresponding stop loss order? Means position in next_contract is not 0
+            existing_stop_loss_broker_order_for_next_contract = (
+                find_stop_loss_broker_order_for_contract_in_stack(
+                    next_contract, stop_loss_broker_stack
+                )
+            )
+        except missingData: 
+            #  No position in next_contract. 
+            #  Send new stop loss order at level proportional with level in current_contract
+            stop_loss_level = (
+                get_stop_loss_level_percent_difference_from_current_price(
+                    data, existing_stop_loss_broker_order_for_next_contract
+                )
+            )
+            
+            stop_loss_info = stopLossInfo(
+                attach_stop_loss=NEW_ORDER,
+                stop_loss_level=stop_loss_level,
+                change_order_by=trade,
+            )
+        else: #  There is already a position in next_contract. Change existing order
+            stop_loss_info = stopLossInfo(
+                attach_stop_loss=CHANGE_ORDER,
+                change_order_by=trade,
+            )
+        #######################
+        """
+        return [contractIdAndTrade(next_contract, trade, stop_loss_info)]
 
     # ok a reducing trade
     new_position = position_current_contract + trade
@@ -357,7 +429,13 @@ def passive_roll_child_order(
             "Passive roll handling order %s, reducing trade, entire trade in next contract %s"
             % (str(instrument_order), next_contract)
         )
-        return [contractIdAndTrade(current_contract, trade)]
+        """
+        stop_loss_info = stopLossInfo(
+            attach_stop_loss=CHANGE_ORDER,
+            change_order_by=trade,
+        )
+        """
+        return [contractIdAndTrade(current_contract, trade, stop_loss_info)]
 
     # OKAY to recap: it's a passive roll, but the trade will be split between
     # current and next
@@ -372,6 +450,8 @@ def passive_roll_child_order(
         current_contract=current_contract,
         next_contract=next_contract,
         position_current_contract=position_current_contract,
+        # instrument_code=instrument_code,
+        # stop_loss_broker_stack=stop_loss_broker_stack,
     )
 
 
@@ -380,6 +460,8 @@ def passive_trade_split_over_two_contracts(
     position_current_contract: int,
     current_contract: str,
     next_contract: str,
+    # instrument_code: str,
+    # stop_loss_broker_stack: StopLossBrokerOrderStackData,
 ) -> list:
     """
     >>> passive_trade_split_over_two_contracts(5, -2, "a", "b")
@@ -395,11 +477,41 @@ def passive_trade_split_over_two_contracts(
     """
 
     trade_in_current_contract = -position_current_contract
-    trade_in_next_contract = trade - trade_in_current_contract
+    """
+    stop_loss_info_for_current_contract_trade = (
+        stopLossInfo(
+            attach_stop_loss=CHANGE_ORDER,
+            change_order_by=trade_in_current_contract,
+        )
+    )
+    """
 
+    trade_in_next_contract = trade - trade_in_current_contract
+    """
+    current_contract = futuresContract(instrument_code, current_contract)
+    existing_stop_loss_broker_order_for_current_contract = (
+        find_stop_loss_broker_order_for_contract_in_stack(
+            current_contract, stop_loss_broker_stack
+        )
+    )
+    
+    stop_loss_level = (
+        get_stop_loss_level_percent_difference_from_current_price(
+            existing_stop_loss_broker_order_for_current_contract
+        )
+    )
+    
+    stop_loss_info_for_next_contract_trade = (
+        stopLossInfo(
+            attach_stop_loss=NEW_ORDER,
+            stop_loss_level=stop_loss_level,
+            change_order_by=trade_in_next_contract,
+        )
+    )
+    """
     return [
-        contractIdAndTrade(current_contract, trade_in_current_contract),
-        contractIdAndTrade(next_contract, trade_in_next_contract),
+        contractIdAndTrade(current_contract, trade_in_current_contract), # stop_loss_info_for_current_contract_trade
+        contractIdAndTrade(next_contract, trade_in_next_contract), # stop_loss_info_for_next_contract_trade
     ]
 
 
@@ -432,7 +544,7 @@ def contract_order_for_direct_instrument_child_date_and_trade(
     :return: contractOrder. Fields reference_price, algo_to_use, limit_price will be set later
     """
 
-    child_contract, child_trade = child_date_and_trade
+    child_contract, child_trade, stop_loss_info = child_date_and_trade
     parent_id = instrument_order.order_id
     strategy = instrument_order.strategy_name
     instrument = instrument_order.instrument_code
@@ -448,6 +560,7 @@ def contract_order_for_direct_instrument_child_date_and_trade(
         child_trade,
         order_type=order_type,
         parent=parent_id,
+        stop_loss_info=stop_loss_info,
     )
 
     return child_contract_order
@@ -673,3 +786,76 @@ def add_limit_price_to_a_direct_child_order(
     child_order.limit_price = new_limit_price
 
     return child_order
+
+
+def add_stop_loss_level_and_delay_from_config_to_stop_loss_info(
+    data: dataBlob, stop_loss_info: stopLossInfo, log
+) -> stopLossInfo:
+
+    stop_loss_config = getattr(data.config, 'stop_loss', None)
+    if stop_loss_config is None:
+        log.critical(
+            "Missing stop loss information from private_config.yaml!!!"
+        )
+        raise Exception('stop_loss missing from private_config.yaml')  # FIXME do something that doesn't crash the stack handler
+
+    if stop_loss_config['use_catastrophic']:
+        stop_loss_info.stop_loss_level = stop_loss_config['catastrophic_level']
+        stop_loss_info.delay_days = stop_loss_config['delay_days_after_stop_loss']
+
+    return stop_loss_info
+
+
+def find_stop_loss_broker_order_for_contract_in_stack(
+    contract: futuresContract, # stop_loss_broker_stack: StopLossBrokerOrderStackData
+) -> brokerOrder:
+    pass
+    """
+    instrument_code = contract.instrument.instrument_code
+    
+    list_of_existing_stop_loss_orders = (
+        stop_loss_broker_stack.get_list_of_orders(
+            exclude_inactive_orders=True
+        )
+    )
+    
+    list_of_stop_loss_orders_for_requested_instrument = []
+    for order in list_of_existing_stop_loss_broker_orders:
+        if order.tradeable_object.instrument_code == instrument_code:
+            list_of_stop_loss_orders_for_requested_instrument.append(order)
+    
+    if len(list_of_stop_loss_orders_for_requested_instrument) > 1:
+        raise Exception(
+            "More than 1 existing stop loss order at broker for instrument %s!"
+            % str(instrument_code)
+        )
+    
+    return list_of_stop_loss_orders_for_requested_instrument[0]
+    """
+
+
+def get_stop_loss_level_percent_difference_from_current_price(
+    data: dataBlob, existing_stop_loss_broker_order: brokerOrder
+) -> float:
+    pass
+    """
+    diag_prices = diagPrices(data)
+    
+    futures_contract = (
+        existing_stop_loss_broker_order.tradeable_object.futures_contract
+    )
+    
+    current_contract_price = (
+        diag_prices.get_prices_at_frequency_for_contract_object(
+            futures_contract, frequency='D'
+        )
+    )
+    
+    stop_loss_price = existing_stop_loss_broker_order.aux_price  # Add aux_price to broker orders!!!!
+    
+    percent_diff_between_stop_loss_order_and_contract_price = (
+        abs((stop_loss_price/current_contract_price) -1.0)
+    )
+    
+    return percent_diff_between_stop_loss_order_and_contract_price
+    """

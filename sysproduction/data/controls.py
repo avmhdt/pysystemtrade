@@ -894,23 +894,24 @@ class diagDelayDays(productionDataLayerGeneric):
     @property
     def db_delay_days_data(self) -> delayDaysData:
         return self.data.db_delay_days
-    
-    def get_dict_of_all_delays_in_db(self) -> dict:
+
+    def get_dict_of_all_delays_in_db(self) -> dict:     # Not yet necessary, maybe later will be needed
         dict_of_all_delays_in_db = self.db_delay_days_data.get_get_dict_of_all_delays()
         # run checks and remove stale (0) delays here
         # ...
         return dict_of_all_delays
         
-    def get_delay_days_for_stop_loss_override(self, override: Override) -> DelayDays:
+    def get_delay_days_for_stop_loss_override(self, override_key: str) -> DelayDays:
         key, delay_days_for_stop_loss_override = (
             self.db_delay_days_data.get_delay_days_for_stop_loss_override(
-                override
+                override_key
             )
         )
     
         return delay_days_for_stop_loss_override
         
     """
+
 
 class updateDelayDays(productionDataLayerGeneric):
     pass
@@ -922,18 +923,20 @@ class updateDelayDays(productionDataLayerGeneric):
     @property
     def db_delay_days_data(self) -> delayDaysData:
         return self.data.db_delay_days
-        
-    def update_delay_days_for_override(self, override: Override):
-        delay_days_in_db = self.data.db_delay_days
-        key, delay_days_for_this_stop_loss_override = (
-            delay_days_in_db.get_delay_days_for_stop_loss_override(
-                stop_loss_override
-            )
-        )
-        delay_days_for_this_stop_loss_override.decrease()
-        delay_days_in_db.update_delay_days_for_override(key, delay_days_for_this_stop_loss_override)
     
-    def delete_delay_days_for_override(self, override: Override):
-        self.db_delay_days_data.delete_delay_days_for_override(override)
+    def set_delay_days_for_override(
+        self, override_key: str, new_delay: DelayDays, 
+    ):
+        self.db_delay_days_data.set_delay_days_for_stop_loss_override(
+            override_key, new_delay
+        )
+        
+    def decrease_delay_days_for_override(self, override_key: str):
+        delay_days_in_db = self.db_delay_days_data
+        delay_days_in_db.decrease_current_delay_for_override(override_key)
+        
+    def delete_delay_days_for_override(self, override_key: str):
+        delay_days_in_db = self.db_delay_days_data
+        delay_days_in_db.delete_delay_days_for_stop_loss_override(override_key)
     
     """

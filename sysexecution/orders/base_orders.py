@@ -13,6 +13,46 @@ from sysexecution.trade_qty import tradeQuantity
 
 from sysobjects.production.tradeable_object import tradeableObject
 
+from dataclasses import dataclass
+from syscore.constants import named_object, arg_not_supplied
+
+
+NO_STOP_LOSS = named_object("no stop loss")
+CHANGE_EXISTING_ORDER = named_object("change existing order")
+NEW_ORDER = named_object("new order")
+
+
+@dataclass
+class stopLossInfo:
+    attach_stop_loss: named_object = NO_STOP_LOSS
+    stop_loss_level: float = arg_not_supplied
+    delay_days: int = arg_not_supplied
+    change_order_by: int = 0
+    old_order_to_cancel = None
+
+    @classmethod
+    def from_trade_qyt_and_direction_change(
+        stopLossInfo, trade_quantity: int, direction_change: bool
+    ):
+        if direction_change:
+            attach_stop_loss = NEW_ORDER
+            change_order_by = 0
+        elif trade_quantity > 0:
+            attach_stop_loss = CHANGE_EXISTING_ORDER
+            change_order_by = trade_quantity
+        else:
+            attach_stop_loss = NO_STOP_LOSS
+            change_order_by = 0
+        
+        stop_loss_info = stopLossInfo(
+            attach_stop_loss=attach_stop_loss,
+            change_order_by=change_order_by
+        )
+
+        return stop_loss_info
+
+
+DEFAULT_STOP_LOSS_INFO = stopLossInfo(NO_STOP_LOSS)
 
 class overFilledOrder(Exception):
     pass
@@ -63,6 +103,7 @@ class Order(object):
         children: list = no_children,
         active: bool = True,
         order_type: orderType = orderType("market"),
+        stop_loss_info: stopLossInfo = DEFAULT_STOP_LOSS_INFO,
         **order_info,
     ):
         """
@@ -77,6 +118,7 @@ class Order(object):
         :param parent: int, order ID of parent order in upward stack
         :param children: list of int, order IDs of child orders in downward stack
         :param active: bool, inactive orders have been filled or cancelled
+        :param stop_loss_info: stopLossInfo
         :param kwargs: other interesting arguments
         """
         self._tradeable_object = tradeable_object
@@ -99,6 +141,7 @@ class Order(object):
         self._children = children
         self._active = active
         self._order_type = order_type
+        self._stop_loss_info = stop_loss_info
         self._order_info = order_info
 
     def __repr__(self):
@@ -108,7 +151,7 @@ class Order(object):
 
     def full_repr(self):
         terse_repr = self.terse_repr()
-        full_repr = terse_repr + " %s" % str(self._order_info)
+        full_repr = terse_repr + " %s" % str(self._order_info) + " %s" % str(self._stop_loss_info)
 
         return full_repr
 
@@ -136,6 +179,14 @@ class Order(object):
                 active_str,
             )
         )
+
+    @property
+    def stop_loss_info(self):
+        return self._stop_loss_info
+
+    @stop_loss_info.setter
+    def stop_loss_info(self, stop_loss_info: stopLossInfo):
+        self._stop_loss_info = stop_loss_info
 
     @property
     def order_info(self):
@@ -367,6 +418,7 @@ class Order(object):
         )
         object_dict["active"] = self.active
         object_dict["order_type"] = self.order_type.as_string()
+        object_dict["stop_loss_info"] = self.stop_loss_info
         for info_key, info_value in self.order_info.items():
             object_dict[info_key] = info_value
 
@@ -391,6 +443,8 @@ class Order(object):
         active = order_as_dict.pop("active")
         order_type = orderType(order_as_dict.pop("order_type", None))
 
+        stop_loss_info = order_as_dict.pop("stop_loss_info")
+
         order_info = order_as_dict
 
         order = Order(
@@ -405,6 +459,7 @@ class Order(object):
             children=children,
             active=active,
             order_type=order_type,
+            stop_loss_info=stop_loss_info,
             **order_info,
         )
 

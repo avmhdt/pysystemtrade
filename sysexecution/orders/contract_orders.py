@@ -5,6 +5,7 @@ from sysexecution.orders.base_orders import (
     Order,
     resolve_inputs_to_order,
     orderType,
+    stopLossInfo,
 )
 from sysexecution.orders.named_order_objects import no_order_id, no_children, no_parent
 
@@ -58,6 +59,7 @@ class contractOrder(Order):
         inter_spread_order: bool = False,
         algo_to_use: str = "",
         reference_of_controlling_algo: str = None,
+        stop_loss_info: stopLossInfo = None,
         **kwargs_ignored,
     ):
         """
@@ -92,6 +94,7 @@ class contractOrder(Order):
         :param roll_order: bool, part of a (or if a spread an entire) roll order. Passive rolls will be False
         :param calendar_spread_order: bool, a calendar spread (intra-market) order
         :param inter_spread_order: bool, part of an instrument order that is a spread across multiple markets
+        :param stop_loss_info: stopLossInfo
         """
 
         key_arguments = from_contract_order_args_to_resolved_args(args, fill=fill)
@@ -133,6 +136,7 @@ class contractOrder(Order):
             children=children,
             active=active,
             order_type=order_type,
+            stop_loss_info=stop_loss_info,
             **order_info,
         )
 
@@ -155,6 +159,7 @@ class contractOrder(Order):
         active = order_as_dict.pop("active")
         order_type = order_as_dict.pop("order_type", None)
         order_type = contractOrderType(order_type)
+        stop_loss_info = order_as_dict.pop("stop_loss_info", None)
 
         order_info = order_as_dict
 
@@ -170,6 +175,7 @@ class contractOrder(Order):
             fill_datetime=fill_datetime,
             filled_price=filled_price,
             order_type=order_type,
+            stop_loss_info=stop_loss_info,
             **order_info,
         )
 
