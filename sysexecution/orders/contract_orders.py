@@ -26,13 +26,14 @@ from syscore.constants import success
 
 class contractOrderType(orderType):
     def allowed_types(self):
-        return ["best", "market", "limit", "balance_trade", "", "panic"]
+        return ["best", "market", "limit", "balance_trade", "", "panic", "stop"]
 
 
 best_order_type = contractOrderType("best")
 balance_order_type = contractOrderType("balance_trade")
 panic_order_type = contractOrderType("panic")
 limit_order_type = contractOrderType("limit")
+stop_order_type = contractOrderType("stop")
 
 NO_CONTROLLING_ALGO = None
 
@@ -60,6 +61,7 @@ class contractOrder(Order):
         algo_to_use: str = "",
         reference_of_controlling_algo: str = None,
         stop_loss_info: stopLossInfo = None,
+        stop_price: float = None,
         **kwargs_ignored,
     ):
         """
@@ -122,6 +124,7 @@ class contractOrder(Order):
             inter_spread_order=inter_spread_order,
             generated_datetime=generated_datetime,
             reference_of_controlling_algo=reference_of_controlling_algo,
+            stop_price=stop_price,
         )
 
         super().__init__(
@@ -232,6 +235,14 @@ class contractOrder(Order):
     @limit_price.setter
     def limit_price(self, limit_price):
         self.order_info["limit_price"] = limit_price
+
+    @property
+    def stop_price(self):
+        return self.order_info["stop_price"]
+
+    @stop_price.setter
+    def stop_price(self, stop_price):
+        self.order_info["stop_price"] = stop_price
 
     @property
     def manual_trade(self):

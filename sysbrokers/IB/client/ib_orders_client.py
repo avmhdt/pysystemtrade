@@ -3,6 +3,7 @@ from ib_insync.order import (
     LimitOrder as ibLimitOrder,
     Trade as ibTrade,
     Order as ibOrder,
+    StopOrder as ibStopOrder,
 )
 
 from syscore.exceptions import missingContract
@@ -25,6 +26,7 @@ from sysexecution.orders.broker_orders import (
     snap_mkt_type,
     snap_mid_type,
     snap_prim_type,
+    stop_order_type,
 )
 
 from sysobjects.contracts import futuresContract
@@ -89,6 +91,7 @@ class ibOrdersClient(ibContractsClient):
         account_id: str = arg_not_supplied,
         order_type: brokerOrderType = market_order_type,
         limit_price: float = None,
+        stop_price: float = None,
     ) -> tradeWithContract:
         """
 
@@ -117,6 +120,7 @@ class ibOrdersClient(ibContractsClient):
             account_id=account_id,
             order_type=order_type,
             limit_price=limit_price,
+            stop_price=stop_price,
         )
 
         order_object = self.ib.placeOrder(ibcontract, ib_order)
@@ -131,6 +135,7 @@ class ibOrdersClient(ibContractsClient):
         account_id: str = "",
         order_type: brokerOrderType = market_order_type,
         limit_price: float = None,
+        stop_price: float = None,
     ) -> ibOrder:
 
         ib_BS_str, ib_qty = resolveBS_for_list(trade_list)
@@ -170,6 +175,12 @@ class ibOrdersClient(ibContractsClient):
                 totalQuantity=ib_qty,
                 auxPrice=0.0,
             )
+        elif order_type is stop_order_type:
+            if stop_price is None:
+                self.log.critical("Need to have stop price with stop order!")
+                return missing_order
+            else:
+                ib_order = ibStopOrder(ib_BS_str, ib_qty, stop_price)
         else:
             self.log.critical("Order type %s not recognised!" % order_type)
             return missing_order

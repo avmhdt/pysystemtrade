@@ -537,6 +537,57 @@ class updatePositions(productionDataLayerGeneric):
             )
         )
 
+    def update_instrument_position_table_with_stop_loss_contract_order(
+        self, contract_order_before_fills: contractOrder, fill_list: tradeQuantity
+    ):
+        instrument_strategy = contract_order_before_fills.instrument_strategy
+        total_trade_qty = fill_list.as_single_trade_qty_or_error()
+
+        time_date = datetime.datetime.now()
+
+        log = contract_order_before_fills.log_with_attributes(self.log)
+
+        self._update_positions_for_instrument_strategy_with_trade_qty(
+            instrument_strategy, total_trade_qty, time_date, log
+        )
+
+        log.debug(
+            "Updated position of %s because of stop loss trade %s ID:%d with fills %d"
+            % (
+                str(instrument_strategy),
+                str(contract_order_before_fills),
+                contract_order_before_fills.order_id,
+                total_trade_qty,
+            )
+        )
+
+    def _update_positions_for_instrument_strategy_with_trade_qty(
+        self, instrument_strategy, trade_done: int, time_date: datetime.datetime, log
+    ):
+
+        current_position = self.diag_positions.get_current_position_for_instrument_strategy(
+            instrument_strategy
+        )
+        new_position = current_position + trade_done
+
+        self.db_strategy_position_data.update_position_for_instrument_strategy_object(
+            instrument_strategy, new_position, date=time_date
+        )
+        # check
+        new_position_db = self.diag_positions.get_current_position_for_instrument_strategy(
+            instrument_strategy
+        )
+
+        log.debug(
+            "Updated position of %s from %d to %d; new position in db is %d"
+            % (
+                str(instrument_strategy),
+                current_position,
+                new_position,
+                new_position_db,
+            )
+        )
+
 
 def annonate_df_index_with_positions_held(data: dataBlob, pd_df: pd.DataFrame):
     instrument_code_list = list(pd_df.index)

@@ -35,3 +35,6 @@ class DelayDays(object):
 
     def as_numeric_value(self):
         return int(self.delay_days)
+
+    def is_zero(self):
+        return self.delay_days == 0

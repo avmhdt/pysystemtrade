@@ -13,12 +13,11 @@ from sysexecution.orders.named_order_objects import missing_order
 from sysexecution.trade_qty import tradeQuantity
 
 from sysexecution.orders.named_order_objects import no_order_id, no_children, no_parent
-from sysexecution.orders.contract_orders import contractOrder
+from sysexecution.orders.contract_orders import contractOrder, contractOrderType
 from sysexecution.orders.broker_orders import brokerOrder
 from sysexecution.order_stacks.broker_order_stack import orderWithControls
 # from sysexecution.order_stacks.stop_loss_broker_order_stack import ...
-# from sysexecution.stack_handler.stop_loss_fills import stackHandlerStopLossFills
-from sysexecution.stack_handler.stackHandlerCore import stackHandlerCore
+from sysexecution.stack_handler.stop_loss_fills import stackHandlerForStopLossFills
 from sysexecution.algos.algo import Algo
 
 from sysproduction.data.controls import (
@@ -34,7 +33,7 @@ from sysexecution.orders.base_orders import (
 )
 
 
-class stackHandlerCreateStopLossBrokerOrders(stackHandlerCore): # stackHandlerStopLossFills):
+class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
     def create_stop_loss_broker_orders_from_fills(self):
         """
         Create stop loss orders from corresponding parent contract order fills.
@@ -118,6 +117,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerCore): # stackHandlerSt
                     raise AssertionError(msg)
 
                 if order_to_change is not missing_order:
+                    # Direction change. Cancel old stop loss order:
                     self.change_existing_stop_loss_order_size(
                         order_to_change, -order_to_change.fill.as_single_trade_qty_or_error()
                     )
@@ -140,7 +140,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerCore): # stackHandlerSt
                     log.critical(msg)
                     raise AssertionError(msg)
 
-                change_order_by = (
+                change_order_by = -(
                     filled_contract_order.stop_loss_info.change_order_by
                 )
 
@@ -242,7 +242,8 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerCore): # stackHandlerSt
             filled_contract_order.instrument_code,
             filled_contract_order.contract_date_key,
             trade,
-            aux_price=stop_loss_price,
+            order_type=contractOrderType("stop"),
+            stop_price=stop_loss_price,
             stop_loss_info=stop_loss_info,
         )
 
@@ -381,7 +382,14 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerCore): # stackHandlerSt
         config = self.data.config.get_element("execution_algos")
 
         contract_order_to_trade_with_algo_set = copy(contract_order_to_trade)
-        contract_order_to_trade_with_algo_set.algo_to_use = config["stop_loss_algo"]
+        try:
+            stop_loss_algo = config["stop_loss_algo"]
+        except KeyError:
+            error_msg = 'Missing stop_loss_algo from config files!!!'
+            log.critical(error_msg)
+            raise Exception(error_msg)
+
+        contract_order_to_trade_with_algo_set.algo_to_use = stop_loss_algo
 
         log.debug(
             "Sending order %s to algo %s"
@@ -510,18 +518,6 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerCore): # stackHandlerSt
             stop_loss_contract_stack.deactivate_order(order_to_change.order_id)
             return None
 
-        """
-        In stopLossContractStack():
-        
-        new_stop_loss_order = contractOrder(
-            order_to_change.strategy_name,
-            order_to_change.instrument_code,
-            order_to_change.contract_date_key,
-            filled_qty + change_order_by,
-            aux_price=order_to_change.aux_price,
-            stop_loss_info=order_to_change.stop_loss_info,
-        )
-        """
         definitely_change_order_by = self.apply_trade_limits_to_contract_order_size_change(
             order_to_change, change_order_by
         )
@@ -532,7 +528,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerCore): # stackHandlerSt
             )
         except Exception as e:
             error_msg = (
-                "Tried to change stop loss contract order trade quantity for %s but couldn't!! (condition %s) STACK CORRUPTED"
+                "Tried to change stop loss contract order trade quantity for %s but couldn't!! (condition %s) MAYBE STACK IS CORRUPTED"
                 % (str(order_to_change), str(e))
             )
             log.critical(error_msg)
@@ -545,14 +541,14 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerCore): # stackHandlerSt
     ) -> int:
         log = order_to_change.log_with_attributes(self.log)
         data_trade_limits = dataTradeLimits(self.data)
-
+        abs_change_order_by = abs(change_order_by)
         instrument_strategy = order_to_change.instrument_strategy
 
         maximum_abs_qty = data_trade_limits.what_trade_is_possible_for_strategy_instrument(
-            instrument_strategy, tradeQuantity(change_order_by)
+            instrument_strategy, tradeQuantity(abs_change_order_by)
         )
 
-        if maximum_abs_qty != change_order_by:
+        if maximum_abs_qty != abs_change_order_by:
             log.debug(
                 "%s trade change from %s to %s because of trade limits"
                 % (
@@ -561,6 +557,9 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerCore): # stackHandlerSt
                     str(maximum_abs_qty),
                 )
             )
+
+        if sign(change_order_by) == -1:
+            return -maximum_abs_qty
 
         return maximum_abs_qty
 
@@ -610,7 +609,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerCore): # stackHandlerSt
             )
         except Exception as e:
             error_msg = (
-                    "Tried to propagate stop loss contract order %s trade quantity change for to broker order %s but couldn't!! (condition %s) STACK CORRUPTED"
+                    "Tried to propagate stop loss contract order %s trade quantity change for to broker order %s but couldn't!! (condition %s) MAYBE STACK IS CORRUPTED"
                     % (str(parent_contract_order), str(actual_child_broker_order), str(e))
             )
             log.critical(error_msg)
@@ -664,6 +663,7 @@ def resolve_inputs_to_stop_loss_order(
         stop_loss_price = arg_not_supplied
 
     delay_days = stop_loss_info.delay_days
+    trade = -trade
 
     return (
         trade, stop_loss_price, delay_days

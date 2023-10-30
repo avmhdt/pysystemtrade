@@ -16,6 +16,8 @@ from sysdata.production.historic_orders import (
     strategyHistoricOrdersData,
     contractHistoricOrdersData,
     brokerHistoricOrdersData,
+    stopLossContractHistoricOrdersData,
+    stopLossBrokerHistoricOrdersData,
 )
 
 from sysobjects.production.tradeable_object import (
@@ -231,3 +233,23 @@ class mongoBrokerHistoricOrdersData(
         ]
 
         return order_ids
+
+
+class mongoStopLossContractHistoricOrdersData(
+    mongoGenericHistoricOrdersData, stopLossContractHistoricOrdersData
+):
+    def _collection_name(self):
+        return "_STOP_LOSS_CONTRACT_HISTORIC_ORDERS"
+
+    def _name(self):
+        return "Historic stop loss contract orders"
+
+
+class mongoStopLossBrokerHistoricOrdersData(
+    mongoGenericHistoricOrdersData, stopLossBrokerHistoricOrdersData
+):
+    def _collection_name(self):
+        return "_STOP_LOSS_BROKER_HISTORIC_ORDERS"
+
+    def _name(self):
+        return "Historic stop loss broker orders"

@@ -147,3 +147,11 @@ class brokerHistoricOrdersData(contractHistoricOrdersData):
         self, instrument_code: str, contract_str: str
     ) -> list:
         raise NotImplementedError
+
+
+class stopLossContractHistoricOrdersData(genericOrdersData):
+    pass
+
+
+class stopLossBrokerHistoricOrdersData(genericOrdersData):
+    pass

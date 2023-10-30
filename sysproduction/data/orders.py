@@ -6,11 +6,15 @@ from sysdata.mongodb.mongo_order_stack import (
     mongoInstrumentOrderStackData,
     mongoContractOrderStackData,
     mongoBrokerOrderStackData,
+    mongoStopLossContractOrderStackData,
+    mongoStopLossBrokerOrderStackData,
 )
 from sysdata.mongodb.mongo_historic_orders import (
     mongoStrategyHistoricOrdersData,
     mongoContractHistoricOrdersData,
     mongoBrokerHistoricOrdersData,
+    mongoStopLossContractHistoricOrdersData,
+    mongoStopLossBrokerHistoricOrdersData,
 )
 from sysdata.production.historic_orders import (
     brokerHistoricOrdersData,
@@ -45,9 +49,13 @@ class dataOrders(object):
                 mongoInstrumentOrderStackData,
                 mongoContractOrderStackData,
                 mongoBrokerOrderStackData,
+                mongoStopLossContractOrderStackData,
+                mongoStopLossBrokerOrderStackData,
                 mongoContractHistoricOrdersData,
                 mongoStrategyHistoricOrdersData,
                 mongoBrokerHistoricOrdersData,
+                mongoStopLossContractHistoricOrdersData,
+                mongoStopLossBrokerHistoricOrdersData,
             ]
         )
         self._data = data
@@ -79,6 +87,14 @@ class dataOrders(object):
     @property
     def db_broker_stack_data(self) -> brokerOrderStackData:
         return self.data.db_broker_order_stack
+
+    @property
+    def db_stop_loss_contract_stack_data(self):
+        return self.db_stop_loss_contract_stack
+
+    @property
+    def db_stop_loss_broker_stack_data(self):
+        return self.db_stop_loss_broker_stack
 
     def add_historic_orders_to_data(
         self,

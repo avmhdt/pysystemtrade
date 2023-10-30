@@ -16,6 +16,7 @@ from sysdata.mongodb.mongo_temporary_override import mongoTemporaryOverrideData
 from sysdata.mongodb.mongo_IB_client_id import mongoIbBrokerClientIdData
 from sysdata.mongodb.mongo_temporary_close import mongoTemporaryCloseData
 from sysdata.mongodb.mongo_override import mongoOverrideData
+from sysdata.mongodb.mongo_delay_days_after_stop_loss import mongoDelayDaysData
 from sysdata.production.broker_client_id import brokerClientIdData
 from sysproduction.data.config import (
     remove_stale_instruments_and_strategies_from_list_of_instrument_strategies,
@@ -37,7 +38,7 @@ from sysdata.production.position_limits import (
     positionLimitForInstrument,
     positionLimitForStrategyInstrument,
 )
-
+from sysdata.production.delay_days_after_stop_loss import delayDaysData
 
 from sysdata.data_blob import dataBlob
 
@@ -62,6 +63,7 @@ from sysobjects.production.override import (
     REDUCE_ONLY_OVERRIDE,
     DEFAULT_OVERRIDE,
 )
+from sysobjects.production.delay_days_after_stop_loss import DelayDays
 
 from sysproduction.data.positions import diagPositions
 from sysproduction.data.generic_production_data import productionDataLayerGeneric
@@ -290,6 +292,17 @@ class diagOverrides(productionDataLayerGeneric):
         )
 
         return cumulative_override
+
+    def get_specific_overrides_for_instrument_strategy_from_db(
+        self, instrument_strategy: instrumentStrategy
+    ) -> Override:
+        override = (
+            self.db_override_data.get_override_for_instrument_strategy(
+                instrument_strategy
+            )
+        )
+
+        return override
 
     def get_cumulative_override_from_configuration(
         self, instrument_strategy: instrumentStrategy
@@ -885,8 +898,7 @@ def remove_overrides_for_stale_instruments_from_dict_of_overrides(
 
 
 class diagDelayDays(productionDataLayerGeneric):
-    pass
-    """
+
     def _add_required_classes_to_data(self, data: dataBlob) -> dataBlob:
         data.add_class_list([mongoDelayDaysData])
         return data
@@ -897,11 +909,13 @@ class diagDelayDays(productionDataLayerGeneric):
 
     def get_dict_of_all_delays_in_db(self) -> dict:     # Not yet necessary, maybe later will be needed
         dict_of_all_delays_in_db = self.db_delay_days_data.get_get_dict_of_all_delays()
+        """
         # run checks and remove stale (0) delays here
         # ...
-        return dict_of_all_delays
+        """
+        return dict_of_all_delays_in_db
         
-    def get_delay_days_for_stop_loss_override(self, override_key: str) -> DelayDays:
+    def get_delay_days_for_stop_loss_override(self, override_key: instrumentStrategy) -> DelayDays:
         key, delay_days_for_stop_loss_override = (
             self.db_delay_days_data.get_delay_days_for_stop_loss_override(
                 override_key
@@ -909,13 +923,10 @@ class diagDelayDays(productionDataLayerGeneric):
         )
     
         return delay_days_for_stop_loss_override
-        
-    """
 
 
 class updateDelayDays(productionDataLayerGeneric):
-    pass
-    """
+
     def _add_required_classes_to_data(self, data: dataBlob) -> dataBlob:
         data.add_class_list([mongoDelayDaysData])
         return data
@@ -925,18 +936,17 @@ class updateDelayDays(productionDataLayerGeneric):
         return self.data.db_delay_days
     
     def set_delay_days_for_override(
-        self, override_key: str, new_delay: DelayDays, 
+        self, override_key: instrumentStrategy, new_delay: DelayDays,
     ):
         self.db_delay_days_data.set_delay_days_for_stop_loss_override(
             override_key, new_delay
         )
         
-    def decrease_delay_days_for_override(self, override_key: str):
+    def decrease_delay_days_for_override(self, override_key: instrumentStrategy):
         delay_days_in_db = self.db_delay_days_data
         delay_days_in_db.decrease_current_delay_for_override(override_key)
         
-    def delete_delay_days_for_override(self, override_key: str):
+    def delete_delay_days_for_override(self, override_key: instrumentStrategy):
         delay_days_in_db = self.db_delay_days_data
         delay_days_in_db.delete_delay_days_for_stop_loss_override(override_key)
-    
-    """
+

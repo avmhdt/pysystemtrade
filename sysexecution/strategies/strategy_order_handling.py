@@ -15,10 +15,22 @@ from sysexecution.order_stacks.instrument_order_stack import zeroOrderException
 
 from sysproduction.data.positions import diagPositions
 from sysproduction.data.orders import dataOrders
-from sysproduction.data.controls import diagOverrides, dataLocks, dataPositionLimits
+from sysproduction.data.controls import (
+    diagOverrides,
+    dataLocks,
+    dataPositionLimits,
+    updateOverrides,
+    diagDelayDays,
+    updateDelayDays,
+)
 
 from sysdata.config.configdata import Config
 from sysexecution.orders.base_orders import stopLossInfo, NO_STOP_LOSS
+
+from sysobjects.production.override import (
+    STOP_LOSS_OVERRIDE,
+    override_none,
+)
 
 name_of_main_generator_method = "get_and_place_orders"
 
@@ -58,7 +70,6 @@ class orderGeneratorForStrategy(object):
     def order_stack(self):
         return self.data_orders.db_instrument_stack_data
 
-    """
     @property
     def config(self) -> Config:
         return self.data.config
@@ -70,20 +81,19 @@ class orderGeneratorForStrategy(object):
             self.log.debug("Missing stop loss info from config, setting use_catastrophic to False")
             stop_loss_config = dict(use_catastrophic=False)
             
-        return stop_loss_config 
-    """
+        return stop_loss_config
 
     def get_and_place_orders(self):
         # THIS IS THE MAIN FUNCTION THAT IS RUN
         order_list = self.get_required_orders()
         order_list_with_overrides = self.apply_overrides_and_position_limits(order_list)
         order_list_with_stop_loss_info = (
-            self.update_stop_loss_info_from_order_list(  # ???
+            self.update_stop_loss_info_from_order_list(
                 order_list_with_overrides
             )
         )
         self.submit_order_list(order_list_with_stop_loss_info)
-        self.update_stop_loss_overrides()  # ???
+        self.update_stop_loss_overrides()
 
     def get_required_orders(self) -> listOfOrders:
         raise Exception(
@@ -194,8 +204,7 @@ class orderGeneratorForStrategy(object):
         return new_order
 
     def update_stop_loss_overrides(self):
-        pass
-        """
+
         diag_overrides = diagOverrides(self.data)
         update_overrides = updateOverrides(self.data)
         
@@ -204,20 +213,19 @@ class orderGeneratorForStrategy(object):
         
         for override_key, stop_loss_override in stop_loss_overrides.items():
             delete_override = (
-                update_single_stop_loss_override_delay_days_and_return_if_zero(
+                self.update_single_stop_loss_override_delay_days_and_return_if_zero(
                     override_key
                 )
             )
             if delete_override:
-                update_overrides.delete_override(override_key)
-        
-        """
+                update_overrides.update_override_for_instrument_strategy(
+                    override_key, override_none
+                )
 
     def update_single_stop_loss_override_delay_days_and_return_if_zero(
-        self, # override_key: str
+        self, override_key: str
     ):
-        pass
-        """
+
         update_delay_days = updateDelayDays(self.data)
         update_delay_days.decrease_delay_days_for_override(override_key)
         
@@ -234,8 +242,6 @@ class orderGeneratorForStrategy(object):
             update_delay_days.delete_delay_days_for_override(override_key)
         
         return delay_days_is_zero
-            
-        """
 
     def submit_order_list(self, order_list: listOfOrders):
         data_lock = dataLocks(self.data)
@@ -271,8 +277,7 @@ class orderGeneratorForStrategy(object):
             )
 
     def update_stop_loss_info_from_order_list(self, order_list: list) -> listOfOrders:
-        pass
-        """
+
         order_list_with_stop_loss_info = listOfOrders()
         
         use_catastrophic = self.stop_loss_config["use_catastrophic"]
@@ -288,11 +293,9 @@ class orderGeneratorForStrategy(object):
             order_list_with_stop_loss_info.append(new_order)
         
         return order_list_with_stop_loss_info
-        """
 
     def get_stop_loss_info_for_order(self, proposed_order: instrumentOrder) -> dict:
-        pass
-        """
+
         diag_positions = diagPositions(self.data)
 
         instrument_strategy = proposed_order.instrument_strategy
@@ -303,23 +306,21 @@ class orderGeneratorForStrategy(object):
         
         trade_quantity = proposed_order.trade.total_abs_qty()
         
-        did_direction_change = did_direction_change(original_position, trade_quantity)
+        direction_change = did_direction_change(original_position, trade_quantity)
         
         stop_loss_info = (
             stopLossInfo.from_trade_qyt_and_direction_change(
-                trade_quantity, direction_change        
+                trade_quantity, direction_change
             )
         )
         
         return stop_loss_info
-        """
 
 
 def get_stop_loss_overrides_from_dict_of_all_overrides(
-    # all_overrides: dict
+    all_overrides: dict
 ) -> dict:
-    pass
-    """
+
     stop_loss_overrides = dict(
         [
             (
@@ -330,14 +331,13 @@ def get_stop_loss_overrides_from_dict_of_all_overrides(
     )
     
     return stop_loss_overrides
-    """
+
 
 def did_direction_change(original_position: int, trade_quantity: int) -> bool:
-    pass
-    """
+
     final_position = original_position + trade_quantity
-    did_direction_change = np.sign(final_position) != np.sign(original_position)
+    did_direction_change_or_not = np.sign(final_position) != np.sign(original_position)
     
-    return did_direction_change
-    """
+    return did_direction_change_or_not
+
 

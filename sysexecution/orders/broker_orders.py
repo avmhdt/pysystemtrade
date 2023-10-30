@@ -78,6 +78,7 @@ class brokerOrder(Order):
         broker_tempid: str = "",
         commission: float = 0.0,
         manual_fill: bool = False,
+        stop_price: float = None,
         **kwargs_ignored,
     ):
         """
@@ -148,6 +149,7 @@ class brokerOrder(Order):
             commission=commission,
             roll_order=roll_order,
             leg_filled_price=leg_filled_price,
+            stop_price=stop_price,
         )
 
         super().__init__(
@@ -192,6 +194,14 @@ class brokerOrder(Order):
     @limit_price.setter
     def limit_price(self, limit_price):
         self.order_info["limit_price"] = limit_price
+
+    @property
+    def stop_price(self):
+        return self.order_info["stop_price"]
+
+    @stop_price.setter
+    def stop_price(self, stop_price):
+        self.order_info["stop_price"] = stop_price
 
     @property
     def algo_used(self):
@@ -386,6 +396,7 @@ def create_new_broker_order_from_contract_order(
     broker_clientid: str = "",
     broker_permid: str = "",
     broker_tempid: str = "",
+    stop_price: float = None,
 ) -> brokerOrder:
 
     broker_order = brokerOrder(
@@ -407,6 +418,7 @@ def create_new_broker_order_from_contract_order(
         broker_tempid=broker_tempid,
         roll_order=contract_order.roll_order,
         manual_fill=contract_order.manual_fill,
+        stop_price=stop_price,
     )
 
     return broker_order
@@ -433,6 +445,9 @@ class brokerOrderWithParentInformation(brokerOrder):
         # instrument order prices may refer to a different contract
         # so we use the contract order limit
         order.parent_limit_price = contract_order.limit_price
+
+        # ze here
+        order.parent_stop_price = contract_order.stop_price
 
         order.buy_or_sell = order.trade.buy_or_sell()
 

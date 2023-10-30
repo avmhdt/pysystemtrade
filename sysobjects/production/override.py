@@ -152,6 +152,7 @@ NO_TRADE_OVERRIDE = Override(override_no_trading)
 REDUCE_ONLY_OVERRIDE = Override(override_reduce_only)
 CLOSE_OVERRIDE = Override(override_close)
 
+STOP_LOSS_OVERRIDE = Override(override_close)
 
 def _apply_float_override(
     override_as_float: float, original_position_no_override: int, proposed_trade: Order

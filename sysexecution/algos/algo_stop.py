@@ -14,6 +14,7 @@ from sysexecution.algos.common_functions import (
 from sysexecution.order_stacks.broker_order_stack import orderWithControls
 from sysexecution.orders.broker_orders import stop_order_type, brokerOrderType
 
+
 class algoStop(Algo):
     """
     Stop execution algo for attaching stop loss to
@@ -48,3 +49,4 @@ class algoStop(Algo):
     @property
     def order_type_to_use(self) -> brokerOrderType:
         return stop_order_type
+

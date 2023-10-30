@@ -11,6 +11,8 @@ from sysexecution.orders.contract_orders import contractOrder
 from sysexecution.order_stacks.contract_order_stack import contractOrderStackData
 from sysexecution.orders.broker_orders import brokerOrder
 from sysexecution.order_stacks.broker_order_stack import brokerOrderStackData
+from sysexecution.order_stacks.stop_loss_contract_order_stack import stopLossContractOrderStackData
+from sysexecution.order_stacks.stop_loss_broker_order_stack import stopLossBrokerOrderStackData
 
 ORDER_ID_STORE_KEY = "_ORDER_ID_STORE_KEY"
 MAX_ORDER_KEY = "max_order_id"
@@ -136,6 +138,22 @@ class mongoContractOrderStackData(mongoOrderStackData, contractOrderStackData):
 class mongoBrokerOrderStackData(mongoOrderStackData, brokerOrderStackData):
     def _collection_name(self):
         return "BROKER_ORDER_STACK"
+
+    def _order_class(self):
+        return brokerOrder
+
+
+class mongoStopLossContractOrderStackData(mongoOrderStackData, stopLossContractOrderStackData):
+    def _collection_name(self):
+        return "STOP_LOSS_CONTRACT_ORDER_STACK"
+
+    def _order_class(self):
+        return contractOrder
+
+
+class mongoStopLossBrokerOrderStackData(mongoOrderStackData, stopLossBrokerOrderStackData):
+    def _collection_name(self):
+        return "STOP_LOSS_BROKER_ORDER_STACK"
 
     def _order_class(self):
         return brokerOrder

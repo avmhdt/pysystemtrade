@@ -28,7 +28,6 @@ class stopLossInfo:
     stop_loss_level: float = arg_not_supplied
     delay_days: int = arg_not_supplied
     change_order_by: int = 0
-    old_order_to_cancel = None
 
     @classmethod
     def from_trade_qyt_and_direction_change(

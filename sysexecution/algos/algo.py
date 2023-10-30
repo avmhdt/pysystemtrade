@@ -13,6 +13,7 @@ from sysexecution.orders.broker_orders import (
     market_order_type,
     limit_order_type,
     brokerOrder,
+    stop_order_type,
 )
 from sysexecution.tick_data import tickerObject
 from sysexecution.orders.contract_orders import contractOrder
@@ -117,6 +118,11 @@ class Algo(object):
         else:
             limit_price = None
 
+        if order_type == stop_order_type:
+            stop_price = self.contract_order.stop_price
+        else:
+            stop_price = None
+
         broker_order = create_new_broker_order_from_contract_order(
             contract_order,
             order_type=order_type,
@@ -127,6 +133,7 @@ class Algo(object):
             broker_account=broker_account,
             broker_clientid=broker_clientid,
             limit_price=limit_price,
+            stop_price=stop_price,
         )
 
         log.debug(

@@ -304,6 +304,7 @@ class ibExecutionStackData(brokerExecutionStackData):
         order_type = broker_order.order_type
         limit_price = broker_order.limit_price
         account_id = broker_order.broker_account
+        stop_price = broker_order.stop_price
 
         contract_object = broker_order.futures_contract
         contract_object_with_ib_data = (
@@ -316,6 +317,7 @@ class ibExecutionStackData(brokerExecutionStackData):
             account_id=account_id,
             order_type=order_type,
             limit_price=limit_price,
+            stop_price=stop_price,
         )
         if placed_broker_trade_object is missing_order:
             log.warning("Couldn't submit order")

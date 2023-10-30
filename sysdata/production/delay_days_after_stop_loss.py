@@ -23,7 +23,7 @@ class delayDaysData(baseData):
         return DelayDays.no_delay()
 
     def get_delay_days_for_stop_loss_override(
-        self, override_key: str
+        self, override_key: instrumentStrategy
     ) -> DelayDays:
 
         try:
@@ -34,12 +34,12 @@ class delayDaysData(baseData):
         return current_delay
 
     def _get_current_delay_for_override_key(
-        self, override_key: str
+        self, override_key: instrumentStrategy
     ) -> int:
         raise NotImplementedError("Need to use inheriting class")
 
     def decrease_current_delay_for_override(
-        self, override_key: str
+        self, override_key: instrumentStrategy
     ):
         current_delay_for_override = (
             self.get_delay_days_for_stop_loss_override(
@@ -57,12 +57,12 @@ class delayDaysData(baseData):
             )
 
     def set_delay_days_for_stop_loss_override(
-        self, override_key: str, new_delay: DelayDays
+        self, override_key: instrumentStrategy, new_delay: DelayDays
     ):
         raise NotImplementedError("Need to use inheriting class")
 
     def delete_delay_days_for_stop_loss_override(
-        self, override_key: str
+        self, override_key: instrumentStrategy
     ):
         raise NotImplementedError("Need to use inheriting class")
 

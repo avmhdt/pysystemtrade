@@ -35,7 +35,7 @@ class stackHandlerCore(object):
         broker_stack = order_data.db_broker_stack_data
 
         stop_loss_contract_stack = order_data.db_stop_loss_contract_stack_data
-        stop_loss_broker_stack = order_data.db_broker_stop_loss_data
+        stop_loss_broker_stack = order_data.db_stop_loss_broker_stack_data
 
         self._instrument_stack = instrument_stack
         self._contract_stack = contract_stack
@@ -230,6 +230,7 @@ def rollback_parents_and_children(
         child_stack.rollback_list_of_orders_on_stack(list_of_child_order_ids)
 
 
+#   FIXME Change this and add stop loss contract and broker order ids:
 orderFamily = namedtuple(
     "orderFamily",
     ["instrument_order_id", "list_of_contract_order_id", "list_of_broker_order_id"],

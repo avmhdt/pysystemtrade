@@ -10,6 +10,9 @@ from sysexecution.stack_handler.checks import stackHandlerChecks
 from sysexecution.stack_handler.additional_sampling import (
     stackHandlerAdditionalSampling,
 )
+from sysexecution.stack_handler.create_stop_loss_broker_orders_from_fills import (
+    stackHandlerCreateStopLossBrokerOrders
+)
 
 
 class stackHandler(
@@ -19,6 +22,7 @@ class stackHandler(
     stackHandlerCancelAndModify,
     stackHandlerChecks,
     stackHandlerAdditionalSampling,
+    stackHandlerCreateStopLossBrokerOrders,
 ):
     def safe_stack_removal(self):
         # Safe deletion of stack
@@ -42,6 +46,16 @@ class stackHandler(
             allow_partial_completions=True, allow_zero_completions=True
         )
 
+        # Process stop loss fills
+        self.log.debug("Processing stop loss fills")
+        self.process_fills_stop_loss_stack()
+
+        # and then completions
+        self.log.debug("Processing stop loss completions")
+        self.handle_completed_stop_loss_orders(
+            allow_partial_completions=True, allow_zero_completions=True
+        )
+
         self.remove_all_deactivated_orders_from_stack()
 
     def remove_all_deactivated_orders_from_stack(self):
@@ -49,3 +63,5 @@ class stackHandler(
         self.instrument_stack.remove_all_deactivated_orders_from_stack()
         self.contract_stack.remove_all_deactivated_orders_from_stack()
         self.broker_stack.remove_all_deactivated_orders_from_stack()
+        self.stop_loss_contract_stack.remove_all_deactivated_orders_from_stack()
+        self.stop_loss_broker_stack.remove_all_deactivated_orders_from_stack()
