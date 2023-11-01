@@ -4,7 +4,7 @@ from collections import namedtuple
 
 from syscore.exceptions import missingData
 from syscore.genutils import sign
-from syscore.constants import success
+from syscore.constants import success, arg_not_supplied
 from sysexecution.orders.named_order_objects import missing_order
 
 from sysdata.data_blob import dataBlob
@@ -354,12 +354,12 @@ def child_order_in_priced_contract_only(
                 )
                 stop_loss_info = stopLossInfo(
                     attach_stop_loss=NEW_ORDER,
-                    change_order_by=trade+existing_position,
+                    change_order_by=-(trade+existing_position),
                 )
             else:
                 stop_loss_info = stopLossInfo(
                     attach_stop_loss=CHANGE_EXISTING_ORDER,
-                    change_order_by=trade,
+                    change_order_by=-trade,
                 )
 
     return [contractIdAndTrade(current_contract, trade, stop_loss_info)]
@@ -441,7 +441,7 @@ def passive_roll_child_order(
                 # There is already a position in next_contract. Change existing order
                 stop_loss_info = stopLossInfo(
                     attach_stop_loss=CHANGE_EXISTING_ORDER,
-                    change_order_by=trade,
+                    change_order_by=-trade,
                 )
 
             else:
@@ -456,7 +456,7 @@ def passive_roll_child_order(
                 stop_loss_info = stopLossInfo(
                     attach_stop_loss=NEW_ORDER,
                     stop_loss_level=stop_loss_level,
-                    change_order_by=trade,
+                    change_order_by=-trade,
                 )
 
         return [contractIdAndTrade(next_contract, trade, stop_loss_info)]
@@ -480,7 +480,7 @@ def passive_roll_child_order(
         else:
             stop_loss_info = stopLossInfo(
                 attach_stop_loss=CHANGE_EXISTING_ORDER,
-                change_order_by=trade,
+                change_order_by=-trade,
             )
 
         return [contractIdAndTrade(current_contract, trade, stop_loss_info)]
@@ -544,7 +544,7 @@ def passive_trade_split_over_two_contracts(
         stop_loss_info_for_current_contract_trade = (
             stopLossInfo(
                 attach_stop_loss=CHANGE_EXISTING_ORDER,
-                change_order_by=trade_in_current_contract,
+                change_order_by=-trade_in_current_contract,
             )
         )
         
@@ -565,7 +565,7 @@ def passive_trade_split_over_two_contracts(
             stopLossInfo(
                 attach_stop_loss=NEW_ORDER,
                 stop_loss_level=stop_loss_level,
-                change_order_by=trade_in_next_contract,
+                change_order_by=-trade_in_next_contract,
             )
         )
 
@@ -863,8 +863,10 @@ def add_stop_loss_level_and_delay_from_config_to_stop_loss_info(
 
     try:
         if stop_loss_config['use_catastrophic']:
-            stop_loss_info.stop_loss_level = stop_loss_config['catastrophic_level']
-            stop_loss_info.delay_days = stop_loss_config['delay_days_after_stop_loss']
+            if stop_loss_info.stop_loss_level is arg_not_supplied:
+                stop_loss_info.stop_loss_level = stop_loss_config['catastrophic_level']
+            if stop_loss_info.delay_days is arg_not_supplied:
+                stop_loss_info.delay_days = stop_loss_config['delay_days_after_stop_loss']
     except KeyError:
         log.critical('Missing use_catastrophic parameter from stop loss config! Considering it to be False!')
 

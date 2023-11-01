@@ -28,6 +28,7 @@ from sysobjects.production.override import (
     CLOSE_OVERRIDE,
     NO_TRADE_OVERRIDE,
     REDUCE_ONLY_OVERRIDE,
+    STOP_LOSS_OVERRIDE,
 )
 
 from sysproduction.data.controls import dataPositionLimits
@@ -317,7 +318,7 @@ def get_maximum_position_contracts_for_instrument_strategy(
 ) -> int:
 
     override = get_override_for_instrument_strategy(data, instrument_strategy)
-    if override == CLOSE_OVERRIDE:
+    if override == CLOSE_OVERRIDE or override == STOP_LOSS_OVERRIDE:
         return 0
 
     position_limit_data = dataPositionLimits(data)

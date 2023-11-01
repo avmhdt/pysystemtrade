@@ -158,10 +158,10 @@ class stackHandlerForStopLossCompletions(stackHandlerCore):
         instrument_order = self.instrument_stack.get_order_with_id_from_stack(
             order_family.instrument_order_id
         )
-        contract_order_list = self.contract_stack.get_list_of_orders_from_order_id_list(
+        contract_order_list = self.stop_loss_contract_stack.get_list_of_orders_from_order_id_list(
             order_family.list_of_contract_order_id
         )
-        broker_order_list = self.broker_stack.get_list_of_orders_from_order_id_list(
+        broker_order_list = self.stop_loss_broker_stack.get_list_of_orders_from_order_id_list(
             order_family.list_of_broker_order_id
         )
 

@@ -304,7 +304,7 @@ class orderGeneratorForStrategy(object):
             instrument_strategy
         )
         
-        trade_quantity = proposed_order.trade.total_abs_qty()
+        trade_quantity = proposed_order.trade.as_single_trade_qty_or_error()
         
         direction_change = did_direction_change(original_position, trade_quantity)
         

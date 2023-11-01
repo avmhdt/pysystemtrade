@@ -1,4 +1,5 @@
 import datetime
+from copy import copy
 from dataclasses import dataclass
 from sysexecution.orders.named_order_objects import missing_order
 from sysobjects.production.roll_state import roll_close_state
@@ -30,6 +31,21 @@ from sysexecution.orders.instrument_orders import zero_roll_order_type
 
 from sysexecution.orders.list_of_orders import listOfOrders
 
+from sysexecution.orders.base_orders import (
+    stopLossInfo,
+    NEW_ORDER,
+    CHANGE_EXISTING_ORDER,
+    NO_STOP_LOSS,
+)
+from sysexecution.stack_handler.spawn_children_from_instrument_orders import (
+    add_stop_loss_level_and_delay_from_config_to_stop_loss_info,
+    find_stop_loss_contract_order_for_contract_in_stack,
+    get_stop_loss_level_percent_difference_from_current_price,
+)
+from sysexecution.order_stacks.stop_loss_contract_order_stack import (
+    stopLossContractOrderStackData
+)
+
 CONTRACT_ORDER_TYPE_FOR_ROLL_ORDERS = best_order_type
 
 ROLL_PSEUDO_STRATEGY = "_ROLL_PSEUDO_STRATEGY"
@@ -56,7 +72,7 @@ class stackHandlerForRolls(stackHandlerCore):
         self, instrument_code: str
     ):
         instrument_order, list_of_contract_orders = create_force_roll_orders(
-            self.data, instrument_code
+            self.data, instrument_code, self.stop_loss_contract_stack
         )
         # Create a pseudo instrument order and a set of contract orders
         # This will also prevent trying to generate more than one set of roll
@@ -274,7 +290,7 @@ class stackHandlerForRolls(stackHandlerCore):
 
 
 def create_force_roll_orders(
-    data: dataBlob, instrument_code: str
+    data: dataBlob, instrument_code: str, stop_loss_contract_stack: stopLossContractOrderStackData
 ) -> (instrumentOrder, listOfOrders):
     """
 
@@ -296,6 +312,7 @@ def create_force_roll_orders(
         roll_spread_info=roll_spread_info,
         instrument_order=instrument_order,
         type_of_roll=type_of_roll,
+        stop_loss_contract_stack=stop_loss_contract_stack
     )
 
     return instrument_order, list_of_contract_orders
@@ -453,6 +470,7 @@ def create_contract_roll_orders(
     roll_spread_info: rollSpreadInformation,
     instrument_order: instrumentOrder,
     type_of_roll: named_object,
+    stop_loss_contract_stack: stopLossContractOrderStackData,
 ) -> listOfOrders:
     diag_positions = diagPositions(data)
     instrument_code = instrument_order.instrument_code
@@ -462,14 +480,18 @@ def create_contract_roll_orders(
 
     if type_of_roll is roll_state_is_close_near_contract:
         contract_orders = create_contract_orders_close_first_contract(
-            roll_spread_info=roll_spread_info, instrument_order=instrument_order
+            data=data, roll_spread_info=roll_spread_info, instrument_order=instrument_order
         )
 
     elif diag_positions.is_roll_state_force(instrument_code):
-        contract_orders = create_contract_orders_spread(roll_spread_info)
+        contract_orders = create_contract_orders_spread(
+            data, roll_spread_info, stop_loss_contract_stack
+        )
 
     elif diag_positions.is_roll_state_force_outright(instrument_code):
-        contract_orders = create_contract_orders_outright(roll_spread_info)
+        contract_orders = create_contract_orders_outright(
+            data, roll_spread_info, stop_loss_contract_stack
+        )
 
     else:
         log = instrument_order.log_with_attributes(data.log)
@@ -485,8 +507,21 @@ def create_contract_roll_orders(
 
 
 def create_contract_orders_close_first_contract(
-    roll_spread_info: rollSpreadInformation, instrument_order: instrumentOrder
+    data: dataBlob, roll_spread_info: rollSpreadInformation, instrument_order: instrumentOrder,
 ) -> listOfOrders:
+
+    stop_loss_config = check_for_stop_loss_config(data)
+
+    if stop_loss_config:
+        stop_loss_info = stopLossInfo(
+            attach_stop_loss=CHANGE_EXISTING_ORDER,
+            change_order_by=roll_spread_info.position_in_priced
+        )
+    else:
+        stop_loss_info = stopLossInfo(
+            attach_stop_loss=NO_STOP_LOSS
+        )
+
     strategy = instrument_order.strategy_name
 
     first_order = contractOrder(
@@ -497,16 +532,33 @@ def create_contract_orders_close_first_contract(
         reference_price=roll_spread_info.reference_price_priced_contract,
         roll_order=True,
         order_type=CONTRACT_ORDER_TYPE_FOR_ROLL_ORDERS,
+        stop_loss_info=stop_loss_info,
     )
 
     return listOfOrders([first_order])
 
 
 def create_contract_orders_outright(
-    roll_spread_info: rollSpreadInformation,
+    data: dataBlob, roll_spread_info: rollSpreadInformation, stop_loss_contract_stack: stopLossContractOrderStackData,
 ) -> listOfOrders:
 
     strategy = ROLL_PSEUDO_STRATEGY
+
+    stop_loss_config = check_for_stop_loss_config(data)
+
+    if stop_loss_config:
+        stop_loss_info_first_contract = stopLossInfo(
+            attach_stop_loss=CHANGE_EXISTING_ORDER,
+            change_order_by=roll_spread_info.position_in_priced,
+        )
+        stop_loss_info_second_contract = get_stop_loss_info_for_force_roll(
+            data, roll_spread_info, stop_loss_contract_stack
+        )
+    else:
+        stop_loss_info_first_contract = stopLossInfo(
+            attach_stop_loss=NO_STOP_LOSS
+        )
+        stop_loss_info_second_contract = copy(stop_loss_info_first_contract)
 
     first_order = contractOrder(
         strategy,
@@ -516,6 +568,7 @@ def create_contract_orders_outright(
         reference_price=roll_spread_info.reference_price_priced_contract,
         roll_order=True,
         order_type=CONTRACT_ORDER_TYPE_FOR_ROLL_ORDERS,
+        stop_loss_info=stop_loss_info_first_contract,
     )
     second_order = contractOrder(
         strategy,
@@ -525,13 +578,14 @@ def create_contract_orders_outright(
         reference_price=roll_spread_info.reference_price_forward_contract,
         roll_order=True,
         order_type=CONTRACT_ORDER_TYPE_FOR_ROLL_ORDERS,
+        stop_loss_info=stop_loss_info_second_contract,
     )
 
     return listOfOrders([first_order, second_order])
 
 
 def create_contract_orders_spread(
-    roll_spread_info: rollSpreadInformation,
+    data: dataBlob, roll_spread_info: rollSpreadInformation, stop_loss_contract_stack: stopLossContractOrderStackData,
 ) -> listOfOrders:
 
     strategy = ROLL_PSEUDO_STRATEGY
@@ -544,6 +598,17 @@ def create_contract_orders_spread(
         roll_spread_info.position_in_priced,
     ]
 
+    stop_loss_config = check_for_stop_loss_config(data)
+
+    if stop_loss_config:
+        stop_loss_info = get_stop_loss_info_for_force_roll(
+            data, roll_spread_info, stop_loss_contract_stack
+        )
+    else:
+        stop_loss_info = stopLossInfo(
+            attach_stop_loss=NO_STOP_LOSS
+        )
+
     spread_order = contractOrder(
         strategy,
         roll_spread_info.instrument_code,
@@ -552,6 +617,7 @@ def create_contract_orders_spread(
         reference_price=roll_spread_info.reference_price_spread,
         roll_order=True,
         order_type=CONTRACT_ORDER_TYPE_FOR_ROLL_ORDERS,
+        stop_loss_info=stop_loss_info,
     )
 
     return listOfOrders([spread_order])
@@ -598,3 +664,72 @@ def is_trade_reducing_position(trade: int, position: float) -> bool:
     ## Note it could be the case that abs(trade)>abs(position), but we still return True here
 
     return True
+
+
+def get_stop_loss_info_for_force_roll(
+    data: dataBlob, roll_spread_info: rollSpreadInformation, stop_loss_contract_stack: stopLossContractOrderStackData,
+) -> stopLossInfo:
+
+    stop_loss_level = get_stop_loss_level_percent_difference_from_roll_spread_info(
+        roll_spread_info, stop_loss_contract_stack
+    )
+
+    stop_loss_info = stopLossInfo(
+        attach_stop_loss=NEW_ORDER,
+        stop_loss_level=stop_loss_level,
+        change_order_by=-roll_spread_info.position_in_priced
+    )
+
+    stop_loss_info = add_stop_loss_level_and_delay_from_config_to_stop_loss_info(
+        data=data, stop_loss_info=stop_loss_info, log=data.log
+    )
+
+    return stop_loss_info
+
+
+def check_for_stop_loss_config(data: dataBlob) -> bool:
+    log = data.log
+
+    stop_loss_config = getattr(data.config, 'stop_loss', None)
+    if stop_loss_config is None:
+        log.critical(
+            "Missing stop loss information from private_config.yaml!!!"
+        )
+        raise Exception('stop_loss missing from private_config.yaml')
+
+    try:
+        if stop_loss_config['use_catastrophic']:
+            return True
+        else:
+            return False
+    except KeyError:
+        log.critical('Missing use_catastrophic parameter from stop loss config! Considering it to be False!')
+        return False
+
+
+def get_stop_loss_level_percent_difference_from_roll_spread_info(
+    roll_spread_info: rollSpreadInformation, stop_loss_contract_stack: stopLossContractOrderStackData
+) -> float:
+
+    priced_contract = futuresContract(
+        roll_spread_info.instrument_code,
+        roll_spread_info.priced_contract_id,
+        simple=False
+    )
+
+    existing_stop_loss_contract_order_for_priced_contract = (
+        find_stop_loss_contract_order_for_contract_in_stack(
+            priced_contract, stop_loss_contract_stack
+        )
+    )
+
+    priced_contract_price = roll_spread_info.reference_price_priced_contract
+
+    stop_loss_price = existing_stop_loss_contract_order_for_priced_contract.stop_price
+
+    percent_diff_between_stop_loss_order_and_contract_price = (
+        abs((stop_loss_price / priced_contract_price) - 1.0)
+    )
+
+    return percent_diff_between_stop_loss_order_and_contract_price
+
