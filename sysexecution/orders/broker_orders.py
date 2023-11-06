@@ -446,8 +446,15 @@ class brokerOrderWithParentInformation(brokerOrder):
         # so we use the contract order limit
         order.parent_limit_price = contract_order.limit_price
 
-        # ze here
+        # Stop loss info
         order.parent_stop_price = contract_order.stop_price
+        order.grandparent = instrument_order
+        order.grandparent_fill = instrument_order.fill
+        order.grandparent_filled_price = instrument_order.filled_price
+        order.grandparent_fill_datetime = instrument_order.fill_datetime
+        order.stop_loss_percent_difference = (
+            (order.stop_price/order.grandparent_filled_price) - 1.0
+        )
 
         order.buy_or_sell = order.trade.buy_or_sell()
 
@@ -470,3 +477,17 @@ def single_fill_from_broker_order(order: brokerOrder, contract_str: str):
     fill = Fill(order.fill_datetime, trade_qty, fill_price)
 
     return fill
+
+
+class stopLossBrokerOrderWithInstrumentAndParentInfo(
+    brokerOrderWithParentInformation
+):
+    @classmethod
+    def add_parent_position_to_order_object(
+        cls,
+        order: brokerOrderWithParentInformation,
+        position: int
+    ):
+        order.instrument_strategy_position = position
+
+        return order

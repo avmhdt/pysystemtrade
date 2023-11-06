@@ -167,7 +167,7 @@ class stackHandlerForStopLossCompletions(stackHandlerCore):
 
         # Update historic order database
         order_data = dataOrders(self.data)
-        order_data.add_historic_orders_to_data(
+        order_data.add_historic_orders_to_data(     # FIXME create add_historic_stop_loss_orders_to_data in orders.py
             instrument_order, contract_order_list, broker_order_list
         )
 

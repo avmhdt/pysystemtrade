@@ -24,6 +24,7 @@ class stopLossContractOrderStackData(contractOrderStackData):
             old_order.instrument_code,
             old_order.contract_date_key,
             new_quantity,
+            parent=old_order.parent,
             order_type=old_order.order_type,
             stop_price=old_order.stop_price,
             stop_loss_info=old_order.stop_loss_info,

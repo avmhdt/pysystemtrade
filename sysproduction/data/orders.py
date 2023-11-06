@@ -20,6 +20,8 @@ from sysdata.production.historic_orders import (
     brokerHistoricOrdersData,
     contractHistoricOrdersData,
     strategyHistoricOrdersData,
+    stopLossContractHistoricOrdersData,
+    stopLossBrokerHistoricOrdersData,
 )
 from sysdata.data_blob import dataBlob
 
@@ -95,6 +97,14 @@ class dataOrders(object):
     @property
     def db_stop_loss_broker_stack_data(self):
         return self.db_stop_loss_broker_stack
+
+    @property
+    def db_stop_loss_contract_historic_orders_data(self) -> stopLossContractHistoricOrdersData:
+        return self.db_stop_loss_contract_historic_orders
+
+    @property
+    def db_stop_loss_broker_historic_orders_data(self) -> stopLossBrokerHistoricOrdersData:
+        return self.db_stop_loss_broker_historic_orders
 
     def add_historic_orders_to_data(
         self,
@@ -246,3 +256,159 @@ class dataOrders(object):
         )
 
         return instrument_order
+
+    def get_current_stop_loss_broker_order_ids(self) -> list:
+        order_id_list = (
+            self.db_stop_loss_broker_stack_data.get_list_of_order_ids(
+                exclude_inactive_orders=True
+            )
+        )
+
+        return order_id_list
+
+    def get_historic_stop_loss_broker_order_ids_in_date_range(
+        self,
+        period_start: datetime.datetime,
+        period_end: datetime.datetime = arg_not_supplied,
+    ) -> list:
+        # remove split orders
+        order_id_list = (
+            self.db_broker_historic_orders_data.get_list_of_order_ids_in_date_range(
+                period_start=period_start, period_end=period_end
+            )
+        )
+
+        return order_id_list
+
+    def get_current_stop_loss_broker_order_from_order_id_with_parent_data(
+        self, order_id: int
+    ) -> brokerOrderWithParentInformation:
+
+        order = self.get_current_stop_loss_broker_order_from_order_id(order_id)
+
+        contract_order = (
+            self.get_parent_stop_loss_contract_order_for_current_stop_loss_broker_order_id(
+                order_id
+            )
+        )
+        instrument_order = (
+            self.get_parent_instrument_order_for_current_stop_loss_broker_order_id(
+                order_id
+            )
+        )
+
+        augmented_order = brokerOrderWithParentInformation.create_augemented_order(
+            order, contract_order=contract_order, instrument_order=instrument_order
+        )
+
+        return augmented_order
+
+    def get_parent_stop_loss_contract_order_for_historic_stop_loss_broker_order_id(
+        self, order_id: int
+    ) -> contractOrder:
+        broker_order = self.get_historic_stop_loss_broker_order_from_order_id(order_id)
+        contract_order_id = broker_order.parent
+        if contract_order_id is no_parent:
+            return missing_order
+
+        contract_order = self.get_historic_stop_loss_contract_order_from_order_id(
+            contract_order_id
+        )
+
+        return contract_order
+
+    def get_parent_instrument_order_for_historic_stop_loss_broker_order_id(
+        self, order_id: int
+    ) -> instrumentOrder:
+        contract_order = self.get_parent_stop_loss_contract_order_for_historic_stop_loss_broker_order_id(
+            order_id
+        )
+        if contract_order is missing_order:
+            return missing_order
+
+        instrument_order_id = contract_order.parent
+        if instrument_order_id is no_parent:
+            return missing_order
+
+        instrument_order = self.get_historic_instrument_order_from_order_id(
+            instrument_order_id
+        )
+
+        return instrument_order
+
+    def get_parent_stop_loss_contract_order_for_current_stop_loss_broker_order_id(
+        self, order_id: int
+    ) -> contractOrder:
+        broker_order = self.get_current_stop_loss_broker_order_from_order_id(order_id)
+        contract_order_id = broker_order.parent
+        if contract_order_id is no_parent:
+            return missing_order
+
+        contract_order = self.get_current_stop_loss_contract_order_from_order_id(
+            contract_order_id
+        )
+
+        return contract_order
+
+    def get_parent_instrument_order_for_current_stop_loss_broker_order_id(
+        self, order_id: int
+    ) -> instrumentOrder:
+        contract_order = self.get_parent_stop_loss_contract_order_for_current_stop_loss_broker_order_id(
+            order_id
+        )
+        if contract_order is missing_order:
+            return missing_order
+
+        instrument_order_id = contract_order.parent
+        if instrument_order_id is no_parent:
+            return missing_order
+
+        instrument_order = self.get_historic_instrument_order_from_order_id(
+            instrument_order_id
+        )
+
+        return instrument_order
+
+    def get_current_stop_loss_contract_order_from_order_id(self, order_id: int) -> contractOrder:
+        order = self.db_stop_loss_contract_stack_data.get_list_of_orders_from_order_id_list(
+            [order_id]
+        )[0]
+
+        return order
+
+    def get_current_stop_loss_broker_order_from_order_id(self, order_id: int) -> brokerOrder:
+        order = self.db_stop_loss_contract_stack_data.get_list_of_orders_from_order_id_list(
+            [order_id]
+        )[0]
+
+        return order
+
+    def get_historic_stop_loss_contract_order_from_order_id(self, order_id: int) -> contractOrder:
+        order = self.db_stop_loss_contract_historic_orders_data.get_order_with_orderid(order_id)
+
+        return order
+
+    def get_historic_stop_loss_broker_order_from_order_id(self, order_id: int) -> brokerOrder:
+        order = self.db_stop_loss_broker_historic_orders_data.get_order_with_orderid(order_id)
+
+        return order
+
+    def get_historic_stop_loss_broker_order_from_order_id_with_execution_data(
+        self, order_id: int
+    ) -> brokerOrderWithParentInformation:
+
+        order = self.get_historic_stop_loss_broker_order_from_order_id(order_id)
+
+        contract_order = self.get_parent_stop_loss_contract_order_for_current_stop_loss_broker_order_id(
+            order_id
+        )
+        instrument_order = (
+            self.get_parent_instrument_order_for_historic_stop_loss_broker_order_id(order_id)
+        )
+
+        augmented_order = brokerOrderWithParentInformation.create_augemented_order(
+            order, contract_order=contract_order, instrument_order=instrument_order
+        )
+
+        return augmented_order
+

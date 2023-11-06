@@ -88,6 +88,12 @@ from sysproduction.reporting.data.status import (
     get_position_limits_as_df,
 )
 from sysproduction.reporting.data.volume import get_liquidity_data_df
+from sysproduction.reporting.data.stop_losses import (
+    get_current_stop_loss_broker_orders,
+    get_recent_filled_stop_loss_broker_order_ids,
+    get_stop_loss_overrides_and_delay_days_as_df,
+)
+
 
 REPORT_DATETIME_FORMAT = "%d/%m/%Y %H:%M"
 
@@ -1079,6 +1085,144 @@ class reportingApi(object):
             self.data, start_date=self.start_date, end_date=self.end_date
         )
         return broker_orders
+
+    ##### STOP LOSS #####
+    def table_of_stop_loss_orders_overview(self):
+        stop_loss_broker_orders = self.stop_loss_broker_orders
+        if len(stop_loss_broker_orders) == 0:
+            return body_text("No stop loss orders")
+
+        overview = stop_loss_broker_orders[
+            [
+                "instrument_code",
+                "strategy_name",
+                "contract_date",
+                "fill_datetime",
+                "position",
+                "filled_price",
+                "stop_loss_price"
+                "percent_diff"
+                "stop_loss_trade"
+            ]
+        ]
+        overview = overview.sort_values("instrument_code")
+        overview_table = table("Stop loss broker orders", overview)
+
+        return overview_table
+
+    def table_of_stop_loss_fills(self):
+        filled_stop_losses = self.filled_stop_loss_broker_orders
+        if len(filled_stop_losses) == 0:
+            return body_text("No stop loss orders filled")
+
+        fills = filled_stop_losses[
+            [
+                "instrument_code",
+                "strategy_name",
+                "contract_date",
+                "fill_datetime",
+                "fill",
+                "filled_price",
+            ]
+        ]
+        fills = fills.sort_values("instrument_code")
+        fills_table = table("Stop loss broker orders filled", fills)
+
+        return fills_table
+
+    def table_of_stop_loss_raw_slippage(self):
+        stop_loss_raw_slippage = self.stop_loss_raw_slippage
+        if len(stop_loss_raw_slippage) == 0:
+            return body_text("No stop loss trades")
+
+        table_of_raw_stop_loss_slippage = table("Slippage (ticks per lot)", stop_loss_raw_slippage)
+
+        return table_of_raw_stop_loss_slippage
+
+    def table_of_stop_loss_vol_slippage(self):
+        stop_loss_raw_slippage = self.stop_loss_raw_slippage
+        if len(stop_loss_raw_slippage) == 0:
+            return body_text("No stop loss trades")
+
+        stop_loss_vol_slippage = create_vol_norm_slippage_df(stop_loss_raw_slippage, self.data)
+        stop_loss_vol_slippage = stop_loss_vol_slippage.round(2)
+        table_of_stop_loss_vol_slippage = table(
+            "Slippage (normalised by annual vol, BP of annual SR)", stop_loss_vol_slippage
+        )
+
+        return table_of_stop_loss_vol_slippage
+
+    def table_of_stop_loss_cash_slippage(self):
+        stop_loss_cash_slippage = self.stop_loss_cash_slippage
+        if len(stop_loss_cash_slippage) == 0:
+            return body_text("No stop loss trades")
+        stop_loss_cash_slippage = stop_loss_cash_slippage.round(2)
+        table_stop_loss_slippage = table("Slippage (In base currency)", stop_loss_cash_slippage)
+
+        return table_stop_loss_slippage
+
+    def table_of_stop_loss_overrides_and_delay_days(self):
+        overrides = get_stop_loss_overrides_and_delay_days_as_df(self.data)
+        overrides_table = table("Status of stop loss overrides and delay days", overrides)
+
+        return overrides_table
+
+    @property
+    def stop_loss_cash_slippage(self) -> pd.DataFrame:
+        try:
+            stop_loss_cash_slippage = getattr(self, "_stop_loss_cash_slippage")
+        except AttributeError:
+            stop_loss_cash_slippage = self._get_stop_loss_cash_slippage()
+            setattr(self, "_stop_loss_cash_slippage", stop_loss_cash_slippage)
+
+        return stop_loss_cash_slippage
+
+    def _get_stop_loss_cash_slippage(self) -> pd.DataFrame:
+        stop_loss_raw_slippage = self.stop_loss_raw_slippage
+        if len(stop_loss_raw_slippage) == 0:
+            return pd.DataFrame()
+
+        stop_loss_cash_slippage = create_cash_slippage_df(stop_loss_raw_slippage, self.data)
+
+        return stop_loss_cash_slippage
+
+    @property
+    def stop_loss_raw_slippage(self) -> pd.DataFrame:
+        try:
+            stop_loss_raw_slippage = getattr(self, "_stop_loss_raw_slippage")
+        except AttributeError:
+            stop_loss_raw_slippage = self._get_stop_loss_raw_slippage()
+            setattr(self, "_stop_loss_raw_slippage", stop_loss_raw_slippage)
+
+        return stop_loss_raw_slippage
+
+    def _get_stop_loss_raw_slippage(self) -> pd.DataFrame:
+        stop_loss_broker_orders = self.stop_loss_broker_orders
+        if len(stop_loss_broker_orders) == 0:
+            return pd.DataFrame()
+        stop_loss_raw_slippage = create_raw_slippage_df(stop_loss_broker_orders)
+
+        return stop_loss_raw_slippage
+
+    @property
+    def stop_loss_broker_orders(self) -> pd.DataFrame:
+        return self.cache.get(self._get_stop_loss_broker_orders)
+
+    @property
+    def filled_stop_loss_broker_orders(self) -> pd.DataFrame:
+        return self.cache.get(self._get_filled_stop_loss_broker_orders)
+
+    def _get_filled_stop_loss_broker_orders(self) -> pd.DataFrame:
+        filled_stop_losses = get_recent_filled_stop_loss_broker_order_ids(
+            self.data, start_date=self.start_date, end_date=self.end_date
+        )
+        return filled_stop_losses
+
+    def _get_stop_loss_broker_orders(self) -> pd.DataFrame:
+        stop_loss_broker_orders = get_current_stop_loss_broker_orders(
+            self.data,  # start_date=self.start_date, end_date=self.end_date
+        )
+        return stop_loss_broker_orders
 
     ##### DATA AND DATES #####
     @property

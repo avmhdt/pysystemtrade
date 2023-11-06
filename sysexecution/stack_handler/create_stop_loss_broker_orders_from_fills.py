@@ -407,6 +407,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
             filled_contract_order.instrument_code,
             filled_contract_order.contract_date_key,
             trade,
+            parent=filled_contract_order.parent,
             order_type=contractOrderType("stop"),
             stop_price=stop_loss_price,
             stop_loss_info=stop_loss_info,
