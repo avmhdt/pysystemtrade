@@ -152,7 +152,7 @@ class instrumentOrder(Order):
         )
         active = order_as_dict.pop("active")
         order_type = instrumentOrderType(order_as_dict.pop("order_type", None))
-        stop_loss_info = order_as_dict.pop("stop_loss_info")
+        stop_loss_info = stopLossInfo(order_as_dict.pop("stop_loss_info"))
 
         order_info = order_as_dict
 

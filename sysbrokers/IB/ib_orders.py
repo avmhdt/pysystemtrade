@@ -21,7 +21,7 @@ from sysdata.data_blob import dataBlob
 from syscore.constants import arg_not_supplied, success
 from syscore.exceptions import orderCannotBeModified
 from sysexecution.order_stacks.order_stack import missingOrder
-from sysexecution.orders.named_order_objects import missing_order
+from sysexecution.orders.named_order_objects import missing_order, no_parent
 
 from sysexecution.order_stacks.broker_order_stack import orderWithControls
 from sysexecution.orders.list_of_orders import listOfOrders
@@ -339,6 +339,8 @@ class ibExecutionStackData(brokerExecutionStackData):
             return missing_order
 
         broker_order = matched_control_order.order
+        if broker_order.parent is no_parent:    # For processing fills correctly
+            broker_order.parent = broker_order_to_match.parent
 
         return broker_order
 

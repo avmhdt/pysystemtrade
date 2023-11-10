@@ -241,8 +241,11 @@ class mongoStopLossContractHistoricOrdersData(
     def _collection_name(self):
         return "_STOP_LOSS_CONTRACT_HISTORIC_ORDERS"
 
+    def _order_class(self):
+        return contractOrder
+
     def _name(self):
-        return "Historic stop loss contract orders"
+        return "Stop loss contract historic orders"
 
 
 class mongoStopLossBrokerHistoricOrdersData(
@@ -251,5 +254,8 @@ class mongoStopLossBrokerHistoricOrdersData(
     def _collection_name(self):
         return "_STOP_LOSS_BROKER_HISTORIC_ORDERS"
 
+    def _order_class(self):
+        return brokerOrder
+
     def _name(self):
-        return "Historic stop loss broker orders"
+        return "Stop loss broker historic orders"

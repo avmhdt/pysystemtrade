@@ -6,6 +6,7 @@ This 'core' is inherited by all the other classes and just initialises, plus doe
 """
 from collections import namedtuple
 from syscore.constants import arg_not_supplied, success, failure
+from syscore.exceptions import missingData
 
 from sysdata.data_blob import dataBlob
 
@@ -18,6 +19,11 @@ from sysproduction.data.prices import diagPrices, updatePrices
 from sysproduction.data.contracts import dataContracts
 from sysproduction.data.broker import dataBroker
 from sysproduction.data.positions import updatePositions
+
+from sysexecution.order_stacks.stop_loss_contract_order_stack import stopLossContractOrderStackData
+from sysexecution.orders.base_orders import stopLossInfo
+from sysexecution.orders.contract_orders import contractOrder, contractOrderType
+from sysobjects.contracts import futuresContract
 
 
 class stackHandlerCore(object):
@@ -235,3 +241,81 @@ orderFamily = namedtuple(
     "orderFamily",
     ["instrument_order_id", "list_of_contract_order_id", "list_of_broker_order_id"],
 )
+
+
+def add_stop_loss_level_and_delay_from_config_to_stop_loss_info(
+    data: dataBlob, stop_loss_info: stopLossInfo, log
+) -> stopLossInfo:
+    stop_loss_config = getattr(data.config, 'stop_loss', None)
+    if stop_loss_config is None:
+        log.critical(
+            "Missing stop loss information from private_config.yaml!!!"
+        )
+        raise Exception('stop_loss missing from private_config.yaml')
+
+    try:
+        if stop_loss_config['use_catastrophic']:
+            if stop_loss_info.stop_loss_level is arg_not_supplied:
+                stop_loss_info.stop_loss_level = stop_loss_config['catastrophic_level']
+            if stop_loss_info.delay_days is arg_not_supplied:
+                stop_loss_info.delay_days = stop_loss_config['delay_days_after_stop_loss']
+    except KeyError:
+        log.critical('Missing use_catastrophic parameter from stop loss config! Considering it to be False!')
+
+    return stop_loss_info
+
+
+def find_stop_loss_contract_order_for_contract_in_stack(
+    contract: futuresContract, stop_loss_contract_stack: stopLossContractOrderStackData
+) -> contractOrder:
+    instrument_code = contract.instrument.instrument_code
+
+    list_of_existing_stop_loss_orders = (
+        stop_loss_contract_stack.get_list_of_orders(
+            exclude_inactive_orders=True
+        )
+    )
+
+    list_of_stop_loss_orders_for_requested_instrument = []
+    for order in list_of_existing_stop_loss_orders:
+        if order.tradeable_object.instrument_code == instrument_code:
+            list_of_stop_loss_orders_for_requested_instrument.append(order)
+
+    if len(list_of_stop_loss_orders_for_requested_instrument) > 1:
+        raise Exception(
+            "More than 1 existing stop loss order at broker for instrument %s!"
+            % str(instrument_code)
+        )
+    elif len(list_of_stop_loss_orders_for_requested_instrument) == 0:
+        raise missingData(
+            "No stop loss orders for requested instrument %s" % (
+                str(instrument_code)
+            )
+        )
+
+    return list_of_stop_loss_orders_for_requested_instrument[0]
+
+
+def get_stop_loss_level_percent_difference_from_current_price(
+    data: dataBlob, existing_stop_loss_contract_order: contractOrder
+) -> float:
+    diag_prices = diagPrices(data)
+
+    futures_contract = (
+        existing_stop_loss_contract_order.futures_contract
+    )
+
+    current_contract_price = (
+        diag_prices.get_prices_at_frequency_for_contract_object(
+            futures_contract, frequency='D'
+        )
+    )
+
+    stop_loss_price = existing_stop_loss_contract_order.stop_price
+
+    percent_diff_between_stop_loss_order_and_contract_price = (
+        abs((stop_loss_price / current_contract_price) - 1.0)
+    )
+
+    return percent_diff_between_stop_loss_order_and_contract_price
+

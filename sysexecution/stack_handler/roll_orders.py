@@ -40,7 +40,6 @@ from sysexecution.orders.base_orders import (
 from sysexecution.stack_handler.spawn_children_from_instrument_orders import (
     add_stop_loss_level_and_delay_from_config_to_stop_loss_info,
     find_stop_loss_contract_order_for_contract_in_stack,
-    get_stop_loss_level_percent_difference_from_current_price,
 )
 from sysexecution.order_stacks.stop_loss_contract_order_stack import (
     stopLossContractOrderStackData

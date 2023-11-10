@@ -124,7 +124,7 @@ class ibOrdersClient(ibContractsClient):
         )
 
         order_object = self.ib.placeOrder(ibcontract, ib_order)
-
+        
         trade_with_contract = tradeWithContract(ibcontract_with_legs, order_object)
 
         return trade_with_contract

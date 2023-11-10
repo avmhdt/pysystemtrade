@@ -6,6 +6,7 @@ Do standard things to the instrument, order and broker stack (normally automated
 
 
 """
+from datetime import datetime
 from typing import Tuple
 import sysexecution.orders.named_order_objects
 from sysexecution.orders.named_order_objects import missing_order, no_children
@@ -54,6 +55,9 @@ from syscore.constants import arg_not_supplied
 
 from sysobjects.contracts import futuresContract
 
+from sysproduction.data.orders import dataOrders
+from sysproduction.data.control_process import diagControlProcess
+
 
 def interactive_order_stack():
     # Avoids pressing enter when running from script
@@ -85,6 +89,8 @@ nested_menu_of_options = {
         2: "View contract order stack",
         3: "View broker order stack (stored local DB)",
         4: "View IB orders and fills",
+        5: "View stop loss contract order stack",
+        6: "View stop loss broker order stack (stored local DB)",
         9: "View positions",
     },
     1: {
@@ -95,6 +101,7 @@ nested_menu_of_options = {
         14: "Balance instrument trade: Create a trade just at the strategy level and fill (not actually executed)",
         15: "Manual trade: Create a series of trades to be executed",
         16: "Cash FX trade",
+        17: "Create (and try to execute) stop loss contract and broker orders from fills"
     },
     2: {
         20: "Manually fill broker or contract order",
@@ -102,6 +109,9 @@ nested_menu_of_options = {
         22: "Pass fills upwards from broker to contract order",
         23: "Pass fills upwards from contract to instrument order",
         24: "Handle completed orders",
+        25: "Get stop loss broker fills from IB",
+        26: "Pass stop loss fills upwards from broker to stop loss contract order, contract and instrument positions",
+        27: "Handle completed stop loss orders"
     },
     3: {
         30: "Cancel broker order",
@@ -115,6 +125,7 @@ nested_menu_of_options = {
         40: "Delete entire stack (CAREFUL!)",
         41: "Delete specific order ID (CAREFUL!)",
         42: "End of day process (cancel orders, mark all orders as complete, delete orders)",
+        43: "Delete specific stop loss order ID (CAREFUL!)"
     },
 }
 
@@ -145,6 +156,22 @@ def view_generic_stack(stack):
     order_ids = stack.get_list_of_order_ids()
     for order_id in order_ids:
         print(stack.get_order_with_id_from_stack(order_id))
+
+
+def view_stop_loss_contract_stack(data):
+    stack_handler = stackHandler(data)
+
+    order_ids = stack_handler.stop_loss_contract_stack.get_list_of_order_ids()
+    print("\nSTOP LOSS CONTRACT STACK \n")
+    for order_id in order_ids:
+        order = stack_handler.stop_loss_contract_stack.get_order_with_id_from_stack(order_id)
+        print(order)
+
+
+def view_stop_loss_broker_stack(data):
+    stack_handler = stackHandler(data)
+    print("\nStop Loss Broker Stack (from database): \n")
+    view_generic_stack(stack_handler.stop_loss_broker_stack)
 
 
 def view_broker_order_list(data):
@@ -678,6 +705,101 @@ def create_fx_trade(data):
     print("%s" % result)
 
 
+def view_completed_contract_orders(data):
+    data_orders = dataOrders(data)
+    data_control_process = diagControlProcess(data)
+    start_time = datetime.combine(
+        datetime.date(datetime.today()),
+        data_control_process.get_start_time('run_stack_handler')
+    )
+    completed_order_ids = data_orders.get_historic_contract_order_ids_in_date_range(
+        period_start=start_time, period_end=datetime.now()
+    )
+    for order_id in completed_order_ids:
+        print(data_orders.get_historic_contract_order_from_order_id(order_id))
+
+
+def generate_stop_loss_orders_from_fills(data):
+    data_orders = dataOrders(data)
+    stack_handler = stackHandler(data)
+
+    print("This will create stop loss contract and broker orders and submit to IB")
+    print("Filled contract orders:")
+    view_completed_contract_orders(data)
+    contract_order_id = get_input_from_user_and_convert_to_type(
+        "Which contract order ID?",
+        type_expected=int,
+        default_value="ALL",
+        default_str="for all",
+    )
+    ans = input("Are you sure? (Y/other)")
+    if ans != "Y":
+        return None
+
+    if contract_order_id == "ALL":
+        stack_handler.create_stop_loss_broker_orders_from_fills()
+    else:
+        contract_order = data_orders.get_historic_contract_order_from_order_id(
+            contract_order_id
+        )
+        stop_loss_order = stack_handler.create_stop_loss_broker_order_from_fill_if_necessary(
+            contract_order
+        )
+        print("CREATED STOP LOSS ORDER:")
+        if stop_loss_order is not None:
+            print(stop_loss_order.order)
+
+
+def get_stop_loss_fills_from_broker(data):
+    stack_handler = stackHandler(data)
+
+    print("This will get any stop loss fills from the broker, and write them to the stop loss broker stack")
+    print("Stop Loss broker orders: (in database)")
+    view_stop_loss_broker_stack(data)
+    broker_order_id = get_input_from_user_and_convert_to_type(
+        "Which stop loss broker order ID?",
+        type_expected=int,
+        default_value="ALL",
+        default_str="for all",
+    )
+    ans = input("Are you sure? (Y/other)")
+    if ans != "Y":
+        return None
+    if broker_order_id == "ALL":
+        stack_handler.pass_stop_loss_fills_from_broker_to_broker_stack()
+    else:
+        stack_handler.apply_stop_loss_broker_fill_from_broker_to_broker_database(broker_order_id)
+
+    print(
+        "If stack process not running, your next job will be to pass fills from broker to stop loss contract stack"
+    )
+
+
+def pass_stop_loss_fills_upwards_from_broker(data):
+    stack_handler = stackHandler(data)
+
+    print(
+        "This will process any fills applied to stop loss broker orders and pass them up to stop loss contract orders",
+        "It will also apply these fills to contract and instrument positions in database",
+    )
+    view_stop_loss_contract_stack(data)
+
+    contract_order_id = get_input_from_user_and_convert_to_type(
+        "Which stop loss order ID?", type_expected=int, default_value="ALL", default_str="for all"
+    )
+    ans = input("Are you sure? (Y/other)")
+    if ans != "Y":
+        return None
+    if contract_order_id == "ALL":
+        stack_handler.pass_stop_loss_fills_from_broker_up_to_contract()
+    else:
+        stack_handler.apply_stop_loss_broker_fills_to_contract_order(contract_order_id)
+
+    print(
+        "This should have already passed fills to contract and instrument positions"
+    )
+
+
 def get_fills_from_broker(data):
     stack_handler = stackHandler(data)
 
@@ -764,6 +886,27 @@ def generate_force_roll_orders(data):
         stack_handler.generate_force_roll_orders_for_instrument(instrument_code)
 
 
+def handle_completed_stop_loss_orders(data):
+    stack_handler = stackHandler(data)
+
+    print("This will process any completed stop loss orders (all fills present)")
+    view_stop_loss_contract_stack(data)
+    stop_loss_contract_order_id = get_input_from_user_and_convert_to_type(
+        "Which stop loss contract order ID?",
+        type_expected=int,
+        default_value="ALL",
+        default_str="All",
+    )
+    ans = input("Are you sure? (Y/other)")
+    if ans != "Y":
+        return None
+
+    if stop_loss_contract_order_id == "ALL":
+        stack_handler.handle_completed_stop_loss_orders()
+    else:
+        stack_handler.handle_completed_stop_loss_contract_order(stop_loss_contract_order_id)
+
+
 def handle_completed_orders(data):
     stack_handler = stackHandler(data)
 
@@ -845,7 +988,7 @@ def resolve_stack(data, exclude_instrument_stack=False):
     if exclude_instrument_stack:
         request_str = "Broker stack [1], or Contract stack [2]?"
     else:
-        request_str = "Broker stack [1], Contract stack [2] or instrument stack [3]?"
+        request_str = "Broker stack [1], Contract stack [2], or instrument stack [3]?"
 
     ans = get_input_from_user_and_convert_to_type(
         request_str, type_expected=int, default_value=0, default_str="Exit"
@@ -858,7 +1001,47 @@ def resolve_stack(data, exclude_instrument_stack=False):
         stack = stack_handler.instrument_stack
     else:
         return None
+
     return stack
+
+
+def resolve_stop_loss_stack(data):
+    stack_handler = stackHandler(data)
+    request_str = "Stop loss contract stack [1], or Stop loss broker stack [2]?"
+
+    ans = get_input_from_user_and_convert_to_type(
+        request_str, type_expected=int, default_value=0, default_str="Exit"
+    )
+    if ans == 1:
+        stack = stack_handler.stop_loss_contract_stack
+    elif ans == 2:
+        stack = stack_handler.stop_loss_broker_stack
+    else:
+        return None
+
+    return stack
+
+
+def delete_specific_stop_loss_order(data):
+    stack = resolve_stop_loss_stack(data)
+    if stack is None:
+        return None
+    view_generic_stack(stack)
+    order_id = get_input_from_user_and_convert_to_type(
+        "Order ID ", type_expected=int, allow_default=False
+    )
+    order = stack.get_order_with_id_from_stack(order_id)
+    print(order)
+    print("This will delete the order from the stack!")
+    print("Make sure parents and children are also deleted or weird stuff will happen")
+    ans = input("This will delete the order from the stack! Are you sure? (Y/other)")
+    if ans == "Y":
+        stack._remove_order_with_id_from_stack_no_checking(order_id)
+        print(
+            "Make sure parents and children are also deleted or weird stuff will happen"
+        )
+
+    return None
 
 
 def delete_specific_order(data):
@@ -884,7 +1067,17 @@ def delete_specific_order(data):
 
 
 def delete_entire_stack(data):
-    stack = resolve_stack(data)
+    ans = get_input_from_user_and_convert_to_type(
+        "Regular stack [1] or stop loss stack [2]?",
+        type_expected=int,
+        allow_default=False,
+    )
+    if ans == 1:
+        stack = resolve_stack(data)
+    elif ans == 2:
+        stack = resolve_stop_loss_stack(data)
+    else:
+        return None
     if stack is None:
         return None
     ans = input("This will delete the entire order stack! Are you sure? (Y/other)")
@@ -946,6 +1139,7 @@ def not_defined(data):
 def cancel_broker_order(data):
     view_broker_order_list(data)
     view_broker_stack(data)
+    view_stop_loss_broker_stack(data)
     stack_handler = stackHandler(data)
     broker_order_id = get_input_from_user_and_convert_to_type(
         "Which order ID?", type_expected=int, default_value="ALL", default_str="for all"
@@ -992,6 +1186,8 @@ dict_of_functions = {
     2: view_contract_stack,
     3: view_broker_stack,
     4: view_broker_order_list,
+    5: view_stop_loss_contract_stack,
+    6: view_stop_loss_broker_stack,
     9: view_positions,
     10: spawn_contracts_from_instrument_orders,
     11: generate_force_roll_orders,
@@ -1000,11 +1196,15 @@ dict_of_functions = {
     14: create_instrument_balance_trade,
     15: create_manual_trade,
     16: create_fx_trade,
+    17: generate_stop_loss_orders_from_fills,
     20: generate_generic_manual_fill,
     21: get_fills_from_broker,
     22: pass_fills_upwards_from_broker,
     23: pass_fills_upwards_from_contracts,
     24: handle_completed_orders,
+    25: get_stop_loss_fills_from_broker,
+    26: pass_stop_loss_fills_upwards_from_broker,
+    27: handle_completed_stop_loss_orders,
     30: cancel_broker_order,
     31: not_defined,
     32: order_locking,
@@ -1014,6 +1214,7 @@ dict_of_functions = {
     40: delete_entire_stack,
     41: delete_specific_order,
     42: end_of_day,
+    43: delete_specific_stop_loss_order,
 }
 
 

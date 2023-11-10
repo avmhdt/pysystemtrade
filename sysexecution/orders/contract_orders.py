@@ -162,7 +162,7 @@ class contractOrder(Order):
         active = order_as_dict.pop("active")
         order_type = order_as_dict.pop("order_type", None)
         order_type = contractOrderType(order_type)
-        stop_loss_info = order_as_dict.pop("stop_loss_info", None)
+        stop_loss_info = stopLossInfo(order_as_dict.pop("stop_loss_info", None))
 
         order_info = order_as_dict
 

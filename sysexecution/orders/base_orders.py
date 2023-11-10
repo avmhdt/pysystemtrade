@@ -14,20 +14,57 @@ from sysexecution.trade_qty import tradeQuantity
 from sysobjects.production.tradeable_object import tradeableObject
 
 from dataclasses import dataclass
-from syscore.constants import named_object, arg_not_supplied
+from syscore.constants import arg_not_supplied
 
 
-NO_STOP_LOSS = named_object("no stop loss")
-CHANGE_EXISTING_ORDER = named_object("change existing order")
-NEW_ORDER = named_object("new order")
+NO_STOP_LOSS = "no stop loss"
+CHANGE_EXISTING_ORDER = "change existing order"
+NEW_ORDER = "new order"
 
 
-@dataclass
-class stopLossInfo:
-    attach_stop_loss: named_object = NO_STOP_LOSS
-    stop_loss_level: float = arg_not_supplied
-    delay_days: int = arg_not_supplied
-    change_order_by: int = 0
+class stopLossInfo(dict):
+    def __repr__(self):
+        return self.as_string()
+
+    @property
+    def attach_stop_loss(self):
+        if "attach_stop_loss" in self.keys():
+            return self["attach_stop_loss"]
+        return None
+
+    @attach_stop_loss.setter
+    def attach_stop_loss(self, new_value):
+        self["attach_stop_loss"] = new_value
+
+    @property
+    def stop_loss_level(self):
+        if "stop_loss_level" in self.keys():
+            return self["stop_loss_level"]
+        return None
+
+    @stop_loss_level.setter
+    def stop_loss_level(self, new_value):
+        self["stop_loss_level"] = new_value
+
+    @property
+    def delay_days(self):
+        if "delay_days" in self.keys():
+            return self["delay_days"]
+        return None
+
+    @delay_days.setter
+    def delay_days(self, new_value):
+        self["delay_days"] = new_value
+
+    @property
+    def change_order_by(self):
+        if "change_order_by" in self.keys():
+            return self["change_order_by"]
+        return None
+
+    @change_order_by.setter
+    def change_order_by(self, new_value):
+        self["change_order_by"] = new_value
 
     @classmethod
     def from_trade_qyt_and_direction_change(
@@ -50,8 +87,19 @@ class stopLossInfo:
 
         return stop_loss_info
 
+    def as_string(self):
+        list_of_values = [
+            self.attach_stop_loss,
+            self.stop_loss_level,
+            self.delay_days,
+            self.change_order_by
+        ]
+        string_to_return = "/".join([str(x) for x in list_of_values])
 
-DEFAULT_STOP_LOSS_INFO = stopLossInfo(NO_STOP_LOSS)
+        return string_to_return
+
+
+DEFAULT_STOP_LOSS_INFO = stopLossInfo(attach_stop_loss=NO_STOP_LOSS)
 
 class overFilledOrder(Exception):
     pass
@@ -184,7 +232,7 @@ class Order(object):
         return self._stop_loss_info
 
     @stop_loss_info.setter
-    def stop_loss_info(self, stop_loss_info: stopLossInfo):
+    def stop_loss_info(self, stop_loss_info: dict):
         self._stop_loss_info = stop_loss_info
 
     @property
@@ -442,7 +490,7 @@ class Order(object):
         active = order_as_dict.pop("active")
         order_type = orderType(order_as_dict.pop("order_type", None))
 
-        stop_loss_info = order_as_dict.pop("stop_loss_info")
+        stop_loss_info = stopLossInfo(order_as_dict.pop("stop_loss_info"))
 
         order_info = order_as_dict
 

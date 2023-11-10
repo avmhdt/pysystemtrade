@@ -15,7 +15,7 @@ def get_list_of_timer_functions_for_stack_handler():
     stack_handler_data = dataBlob(log_name="stack_handler")
     stack_handler = stackHandler(stack_handler_data)
     list_of_timer_names_and_functions = [
-        ("process_stop_loss_fills_stack", stack_handler),
+        ("process_fills_stop_loss_stack", stack_handler),
         ("handle_completed_stop_loss_orders", stack_handler),
         ("check_external_position_break", stack_handler),
         ("spawn_children_from_new_instrument_orders", stack_handler),

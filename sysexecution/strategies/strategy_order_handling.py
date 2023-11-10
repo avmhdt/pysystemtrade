@@ -4,6 +4,7 @@ For each strategy gets the required trades per instrument
 It then passes these to the 'virtual' order queue
 So called because it deals with instrument level trades, not contract implementation
 """
+from copy import copy
 import numpy as np
 
 from sysexecution.orders.named_order_objects import zero_order
@@ -31,6 +32,8 @@ from sysobjects.production.override import (
     STOP_LOSS_OVERRIDE,
     override_none,
 )
+from sysobjects.production.tradeable_object import instrumentStrategy
+
 
 name_of_main_generator_method = "get_and_place_orders"
 
@@ -76,7 +79,7 @@ class orderGeneratorForStrategy(object):
 
     @property
     def stop_loss_config(self):
-        stop_loss_config = self.config.get_element("stop_loss", None)
+        stop_loss_config = self.config.get_element("stop_loss")
         if stop_loss_config is None:
             self.log.debug("Missing stop loss info from config, setting use_catastrophic to False")
             stop_loss_config = dict(use_catastrophic=False)
@@ -223,7 +226,7 @@ class orderGeneratorForStrategy(object):
                 )
 
     def update_single_stop_loss_override_delay_days_and_return_if_zero(
-        self, override_key: str
+        self, override_key: instrumentStrategy
     ):
 
         update_delay_days = updateDelayDays(self.data)
@@ -289,7 +292,8 @@ class orderGeneratorForStrategy(object):
                     attach_stop_loss=NO_STOP_LOSS,
                 )
                 
-            new_order = order.append_stop_loss_info(stop_loss_info_for_order)
+            new_order = copy(order)
+            new_order.stop_loss_info = stop_loss_info_for_order
             order_list_with_stop_loss_info.append(new_order)
         
         return order_list_with_stop_loss_info

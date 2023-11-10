@@ -14,7 +14,7 @@ from sysexecution.algos.common_functions import (
 from sysexecution.order_stacks.broker_order_stack import orderWithControls
 from sysexecution.orders.broker_orders import market_order_type, brokerOrderType
 
-SIZE_LIMIT = 1
+SIZE_LIMIT = 1000    # 1
 ORDER_TIME_OUT = 600
 
 

@@ -41,6 +41,7 @@ class stackHandlerCancelAndModify(stackHandlerCore):
         self,
     ) -> listOfOrders:
         list_of_broker_order_ids = self.broker_stack.get_list_of_order_ids()
+        list_of_broker_order_ids += self.stop_loss_broker_stack.get_list_of_order_ids()
         list_of_broker_orders = []
         for broker_order_id in list_of_broker_order_ids:
             broker_order = self.cancel_broker_order_with_id_and_return_order(
@@ -59,7 +60,9 @@ class stackHandlerCancelAndModify(stackHandlerCore):
         broker_order = self.broker_stack.get_order_with_id_from_stack(broker_order_id)
 
         if broker_order is missing_order:
-            return missing_order
+            broker_order = self.stop_loss_broker_stack.get_order_with_id_from_stack(broker_order_id)
+            if broker_order is missing_order:
+                return missing_order
 
         if broker_order.fill_equals_desired_trade():
             # no need to cancel

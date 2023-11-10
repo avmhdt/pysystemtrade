@@ -29,6 +29,8 @@ from sysobjects.fills import ListOfFills
 from sysexecution.order_stacks.broker_order_stack import brokerOrderStackData
 from sysexecution.order_stacks.contract_order_stack import contractOrderStackData
 from sysexecution.order_stacks.instrument_order_stack import instrumentOrderStackData
+from sysexecution.order_stacks.stop_loss_contract_order_stack import stopLossContractOrderStackData
+from sysexecution.order_stacks.stop_loss_broker_order_stack import stopLossBrokerOrderStackData
 
 from sysexecution.orders.contract_orders import contractOrder
 from sysexecution.orders.broker_orders import (
@@ -91,16 +93,16 @@ class dataOrders(object):
         return self.data.db_broker_order_stack
 
     @property
-    def db_stop_loss_contract_stack_data(self):
-        return self.db_stop_loss_contract_stack
+    def db_stop_loss_contract_stack_data(self) -> stopLossContractOrderStackData:
+        return self.data.db_stop_loss_contract_order_stack
 
     @property
-    def db_stop_loss_broker_stack_data(self):
-        return self.db_stop_loss_broker_stack
+    def db_stop_loss_broker_stack_data(self) -> stopLossBrokerOrderStackData:
+        return self.data.db_stop_loss_broker_order_stack
 
     @property
     def db_stop_loss_contract_historic_orders_data(self) -> stopLossContractHistoricOrdersData:
-        return self.db_stop_loss_contract_historic_orders
+        return self.data.db_stop_loss_contract_historic_orders
 
     @property
     def db_stop_loss_broker_historic_orders_data(self) -> stopLossBrokerHistoricOrdersData:
@@ -280,6 +282,18 @@ class dataOrders(object):
 
         return order_id_list
 
+    def get_historic_stop_loss_contract_order_ids_in_date_range(
+        self, period_start: datetime.datetime, period_end: datetime.datetime
+    ) -> list:
+
+        order_id_list = (
+            self.db_stop_loss_contract_historic_orders_data.get_list_of_order_ids_in_date_range(
+                period_start, period_end
+            )
+        )
+
+        return order_id_list
+
     def get_current_stop_loss_broker_order_from_order_id_with_parent_data(
         self, order_id: int
     ) -> brokerOrderWithParentInformation:
@@ -412,3 +426,20 @@ class dataOrders(object):
 
         return augmented_order
 
+    def add_historic_stop_loss_orders_to_data(
+        self,
+        instrument_order: instrumentOrder,
+        list_of_stop_loss_contract_orders: listOfOrders,
+        list_of_stop_loss_broker_orders: listOfOrders,
+    ):
+        for contract_order in list_of_stop_loss_contract_orders:
+            self.add_historic_stop_loss_contract_order_to_data(contract_order)
+
+        for broker_order in list_of_stop_loss_broker_orders:
+            self.add_historic_stop_loss_broker_order_to_data(broker_order)
+
+    def add_historic_stop_loss_contract_order_to_data(self, stop_loss_contract_order: contractOrder):
+        self.db_stop_loss_contract_historic_orders_data.add_order_to_data(stop_loss_contract_order)
+
+    def add_historic_stop_loss_broker_order_to_data(self, stop_loss_broker_order: brokerOrder):
+        self.db_stop_loss_broker_historic_orders_data.add_order_to_data(stop_loss_broker_order)

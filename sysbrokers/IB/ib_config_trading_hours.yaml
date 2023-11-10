@@ -52,11 +52,11 @@ US10_example:
 # WARNING: If a time zone by region is not available, stuff will break
 #          As it's important to know if region coding has changed
 US/Central:
-  - '15:00'
-  - '20:00'
+  - '00:00' #'15:00'
+  - '23:59' #'20:00'
 US/Eastern:
-  - '14:00'
-  - '19:00'
+  - '00:00' #'14:00'
+  - '23:59' #'19:00'
 GB-Eire:
   - '09:00'
   - '16:00'

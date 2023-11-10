@@ -57,7 +57,7 @@ class stackHandlerForStopLossCompletions(stackHandlerCore):
         # A subsequent process will delete them
         self.deactivate_family_of_stop_loss_orders(order_family)
 
-        self.add_order_family_to_historic_orders_database(order_family)
+        self.add_stop_loss_order_family_to_historic_orders_database(order_family)
 
     def get_order_family_for_stop_loss_contract_order_id(
         self, stop_loss_contract_order_id: int
@@ -153,11 +153,8 @@ class stackHandlerForStopLossCompletions(stackHandlerCore):
 
         return True
 
-    def add_order_family_to_historic_orders_database(self, order_family: orderFamily):
+    def add_stop_loss_order_family_to_historic_orders_database(self, order_family: orderFamily):
 
-        instrument_order = self.instrument_stack.get_order_with_id_from_stack(
-            order_family.instrument_order_id
-        )
         contract_order_list = self.stop_loss_contract_stack.get_list_of_orders_from_order_id_list(
             order_family.list_of_contract_order_id
         )
@@ -167,8 +164,8 @@ class stackHandlerForStopLossCompletions(stackHandlerCore):
 
         # Update historic order database
         order_data = dataOrders(self.data)
-        order_data.add_historic_orders_to_data(     # FIXME create add_historic_stop_loss_orders_to_data in orders.py
-            instrument_order, contract_order_list, broker_order_list
+        order_data.add_historic_stop_loss_orders_to_data(
+            None, contract_order_list, broker_order_list
         )
 
     def deactivate_family_of_stop_loss_orders(self, order_family: orderFamily):
