@@ -173,16 +173,25 @@ class diagControlProcess(productionDataLayerGeneric):
         stop_time = self.get_stop_time(process_name)
         now_time = datetime.datetime.now().time()
 
-        if now_time >= start_time and now_time < stop_time:
-            return True
+        if start_time < stop_time:
+            if now_time >= start_time and now_time < stop_time:
+                return True
+            else:
+                return False
         else:
-            return False
+            just_before_midnight = datetime.time(23, 59, 59, 59)
+            midnight = datetime.time(0, 0, 0, 0)
+            if (start_time <= now_time <= just_before_midnight) or (midnight <= now_time <= stop_time):
+                return True
+            else:
+                return False
 
     def is_it_time_to_stop(self, process_name: str) -> bool:
+        start_time = self.get_start_time(process_name)
         stop_time = self.get_stop_time(process_name)
         now_time = datetime.datetime.now().time()
 
-        if now_time > stop_time:
+        if (now_time > stop_time > start_time) or (start_time > now_time > stop_time):
             return True
         else:
             return False
