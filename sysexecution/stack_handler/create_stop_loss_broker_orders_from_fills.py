@@ -1,6 +1,7 @@
 from copy import copy
 from datetime import datetime
-from numpy import sign
+
+from numpy import sign, log10
 from itertools import compress
 from syscore.objects import (
     resolve_function,
@@ -30,6 +31,7 @@ from sysproduction.data.orders import dataOrders
 from sysproduction.data.positions import diagPositions
 from sysproduction.data.control_process import diagControlProcess
 from sysproduction.data.broker import dataBroker
+from sysproduction.data.instruments import diagInstruments
 
 from sysexecution.orders.base_orders import (
     NEW_ORDER,
@@ -78,7 +80,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
         data_orders = dataOrders(self.data)
         diag_control_process = diagControlProcess(self.data)
 
-        start_time = diag_control_process.get_control_for_process_name('run_stack_handler').last_start_time,
+        start_time = diag_control_process.get_control_for_process_name('run_stack_handler').last_start_time
 
         filled_contract_order_id_list = data_orders.get_historic_contract_order_ids_in_date_range(
             period_start=start_time, period_end=datetime.now()
@@ -111,7 +113,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
 
         data_orders = dataOrders(self.data)
         diag_control_process = diagControlProcess(self.data)
-        diag_positions = diagPositions(self.data)
+        data_broker = dataBroker(self.data)
 
         start_time_for_recently_filled_stop_losses = (
             diag_control_process.get_control_for_process_name('run_strategy_order_generator').last_end_time
@@ -131,15 +133,16 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
         relevant_contract = filled_contract_order.futures_contract
         instrument_strategy = filled_contract_order.instrument_strategy
 
-        contract_position_at_db = (
-            diag_positions.get_position_for_contract(relevant_contract)
+        all_contract_positions_at_broker = data_broker.get_all_current_contract_positions()
+        contract_position_at_broker = (
+            all_contract_positions_at_broker.position_for_object(relevant_contract)
         )
 
         for order in recently_filled_stop_loss_contract_order_list:
             if order.futures_contract == relevant_contract and (
                 order.instrument_strategy == instrument_strategy
                 and order.fill_equals_desired_trade()
-                and contract_position_at_db == 0
+                and contract_position_at_broker == 0
             ):
                 return True
 
@@ -489,7 +492,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
             data=self.data,
             futures_contract=filled_contract_order.futures_contract,
             stop_loss_price=stop_loss_price,
-            reference_price=filled_contract_order.filled_price,
+            reference_price=filled_contract_order.reference_price,
         )
 
         stop_loss_contract_order = contractOrder(
@@ -984,10 +987,31 @@ def resolve_stop_loss_price_for_min_move(
     data_broker = dataBroker(data)
 
     min_move = data_broker.get_min_tick_size_for_contract(futures_contract)
+    instrument_metadata = data_broker.get_brokers_instrument_with_metadata(
+        futures_contract.instrument_code
+    ).meta_data.as_dict()
+    price_magnifier = instrument_metadata['priceMagnifier']
+
+    # data.log.debug("%s\n\n\n" % str(instrument_metadata))
 
     new_stop_loss_price = (
         ((stop_loss_price - reference_price) // min_move) * min_move + reference_price
     )
+
+    if 'e' in str(min_move):
+        decimal_places = abs(int(f'{min_move:e}'.split('e')[-1]))
+    else:
+        decimal_places = str(min_move)[::-1].find('.')
+
+    decimal_places = int(decimal_places - log10(price_magnifier))
+    new_stop_loss_price = round(new_stop_loss_price, decimal_places)
+
+    # data.log.debug("DECIMAL PLACES = %s, MIN_MOVE = %s\n\n\n" % (str(decimal_places), str(min_move)))
+    # data.log.debug(
+    #     "NEW STOP LOSS PRICE AND MIN MOVE FOR %s = %s, %s\n\n\n" % (
+    #         str(futures_contract), str(new_stop_loss_price), str(min_move)
+    #     )
+    # )
 
     return new_stop_loss_price
 

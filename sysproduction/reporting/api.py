@@ -1097,12 +1097,13 @@ class reportingApi(object):
                 "instrument_code",
                 "strategy_name",
                 "contract_date",
-                "fill_datetime",
-                "position",
-                "filled_price",
-                "stop_loss_price"
-                "percent_diff"
-                "stop_loss_trade"
+                "instrument_strategy_position",
+                "grandparent_filled_price",
+                "grandparent_fill_datetime",
+                "stop_price",
+                "stop_loss_percent_difference",
+                "trade",
+                "buy_or_sell",
             ]
         ]
         overview = overview.sort_values("instrument_code")
@@ -1200,6 +1201,8 @@ class reportingApi(object):
         stop_loss_broker_orders = self.stop_loss_broker_orders
         if len(stop_loss_broker_orders) == 0:
             return pd.DataFrame()
+
+        # FIXME: write function specifically for stop loss orders.
         stop_loss_raw_slippage = create_raw_slippage_df(stop_loss_broker_orders)
 
         return stop_loss_raw_slippage

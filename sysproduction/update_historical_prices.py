@@ -1,15 +1,18 @@
 """
 Update historical data per contract from interactive brokers data, dump into mongodb
 """
-
+import os
 import time
 import datetime
 
 from copy import copy
 from typing import List, Tuple
 
+import pandas as pd
+
 from syscore.constants import arg_not_supplied, success, failure
 from syscore.exceptions import missingData
+from syscore.fileutils import resolve_path_and_filename_for_package
 from syscore.pandas.merge_data_keeping_past_data import SPIKE_IN_DATA, mergeError
 from syscore.dateutils import DAILY_PRICE_FREQ, Frequency
 from syscore.pandas.frequency import merge_data_with_different_freq
@@ -20,7 +23,7 @@ from sysdata.tools.cleaner import priceFilterConfig, get_config_for_price_filter
 
 from syslogdiag.email_via_db_interface import send_production_mail_msg
 
-from sysobjects.contracts import futuresContract
+from sysobjects.contracts import futuresContract, listOfFuturesContracts
 from sysobjects.futures_per_contract_prices import futuresContractPrices
 
 from sysproduction.data.prices import diagPrices, updatePrices
@@ -28,7 +31,26 @@ from sysproduction.data.broker import dataBroker
 from sysproduction.data.instruments import diagInstruments
 from sysproduction.data.contracts import dataContracts
 
+from data.bcutils.bc_utils import download_barchart_prices_for_contract_map
+from data.bcutils.ze_config import CONTRACT_MAP
+
+from sysdata.csv.csv_futures_contract_prices import csvFuturesContractPriceData, ConfigCsvFuturesPrices
+from syscore.dateutils import Frequency
+
+
 NO_SPIKE_CHECKING = 99999999999.0
+BARCHART_SAVE_DIRECTORY = os.environ['PYSYS_CODE'] + '/data/bcutils/data'
+
+
+barchart_csv_config = ConfigCsvFuturesPrices(
+    input_date_index_name="Time",
+    input_skiprows=0,
+    input_skipfooter=1,
+    input_date_format="%Y-%m-%dT%H:%M:%S%z",
+    input_column_mapping=dict(
+        OPEN="Open", HIGH="High", LOW="Low", FINAL="Close", VOLUME="Volume"
+    ),
+)
 
 
 def update_historical_prices():
@@ -39,7 +61,13 @@ def update_historical_prices():
     """
     with dataBlob(log_name="Update-Historical-Prices") as data:
         update_historical_price_object = updateHistoricalPrices(data)
-        update_historical_price_object.update_historical_prices()
+
+        data_source = data.config.get_element("data_source")
+        if data_source == "barchart":
+            update_historical_price_object.update_historical_prices_barchart()
+        elif data_source == "broker":
+            update_historical_price_object.update_historical_prices()
+
     return success
 
 
@@ -51,6 +79,10 @@ class updateHistoricalPrices(object):
         data = self.data
         update_historical_prices_with_data(data, download_by_zone=download_by_zone)
 
+    def update_historical_prices_barchart(self):
+        data = self.data
+        update_historical_prices_with_data_barchart(data)
+
 
 def update_historical_prices_with_data(
     data: dataBlob, download_by_zone: dict = arg_not_supplied
@@ -61,6 +93,20 @@ def update_historical_prices_with_data(
         manage_download_over_multiple_time_zones(
             data=data, download_by_zone=download_by_zone
         )
+
+
+def update_historical_prices_with_data_barchart(data: dataBlob):
+    data.log.debug(
+        "Preparing Barchart data download"
+    )
+    price_data = diagPrices(data)
+    list_of_instrument_codes = price_data.get_list_of_instruments_in_multiple_prices()
+
+    update_historical_prices_for_list_of_instrument_codes_with_barchart_data(
+        data=data,
+        list_of_instrument_codes=list_of_instrument_codes,
+        save_directory=BARCHART_SAVE_DIRECTORY,
+    )
 
 
 def download_all_instrument_prices_now(data: dataBlob):
@@ -291,6 +337,65 @@ def update_historical_prices_for_list_of_instrument_codes(
         )
 
 
+def update_historical_prices_for_list_of_instrument_codes_with_barchart_data(
+    data: dataBlob, list_of_instrument_codes: List[str], save_directory: str, interactive_mode: bool = False,
+):
+    cleaning_config = get_config_for_price_filtering(data)
+
+    contract_map = {
+        k: v for k, v in CONTRACT_MAP.items() if k in list_of_instrument_codes and v['code'] is not None
+    }
+    instrument_list = list(contract_map.keys())
+
+    diag_prices = diagPrices(data)
+    intraday_frequency = diag_prices.get_intraday_frequency_for_historical_download()
+
+    actual_intraday_frequencies = [
+        Frequency.Hour,
+        Frequency.Minutes_15,
+        Frequency.Minutes_5,
+        Frequency.Seconds_10,
+        Frequency.Second
+    ]
+
+    for instrument_code in instrument_list:
+        data.log.label(instrument_code=instrument_code)
+
+        contract_map[instrument_code]['cycle'] = (
+            update_sampled_contract_map_for_instrument(
+                data=data,
+                instrument_code=instrument_code,
+            )
+        )
+        if intraday_frequency in actual_intraday_frequencies:
+            contract_map[instrument_code]['tick_date'] = (
+                str(datetime.datetime.today().date() - datetime.timedelta(days=120))
+            )
+
+    if intraday_frequency in actual_intraday_frequencies:
+        force_daily = False
+    else:
+        force_daily = True
+
+    download_barchart_prices_for_contract_map(contract_map, save_directory, force_daily=force_daily)
+
+    csv_data = csvFuturesContractPriceData(save_directory, config=barchart_csv_config)
+
+    for instrument_code in instrument_list:
+        contract_list = csv_data.contracts_with_merged_price_data_for_instrument_code(instrument_code)
+
+        for contract in contract_list:
+            get_and_add_prices_from_barchart_csv_for_contract(
+                data,
+                csv_data=csv_data,
+                contract_object=contract,
+                cleaning_config=cleaning_config,
+                interactive_mode=interactive_mode,
+            )
+
+    return success
+
+
 ## This is also called by the interactive update
 def update_historical_prices_for_instrument(
     instrument_code: str,
@@ -325,6 +430,24 @@ def update_historical_prices_for_instrument(
         )
 
     return success
+
+
+def update_sampled_contract_map_for_instrument(
+    data: dataBlob, instrument_code: str
+):
+    diag_contracts = dataContracts(data)
+    all_contracts_list = diag_contracts.get_all_contract_objects_for_instrument_code(
+        instrument_code
+    )
+    contract_list = all_contracts_list.currently_sampling()
+
+    if len(contract_list) == 0:
+        data.log.warning("No contracts marked for sampling for %s" % instrument_code)
+        return failure
+
+    cycle = ''.join([contract.contract_date.letter_month() for contract in contract_list])
+
+    return cycle
 
 
 def update_historical_prices_for_instrument_and_contract(
@@ -401,6 +524,55 @@ def get_and_add_prices_for_frequency(
         check_for_spike = False
     else:
         new_prices_checked = copy(broker_prices)
+        check_for_spike = True
+
+    error_or_rows_added = price_updating_or_errors(
+        data=data,
+        frequency=frequency,
+        contract_object=contract_object,
+        new_prices_checked=new_prices_checked,
+        check_for_spike=check_for_spike,
+        cleaning_config=cleaning_config,
+    )
+    if error_or_rows_added is failure:
+        return failure
+
+    data.log.debug(
+        "Added %d rows at frequency %s for %s"
+        % (error_or_rows_added, frequency, str(contract_object))
+    )
+    return success
+
+
+def get_and_add_prices_from_barchart_csv_for_contract(
+    data: dataBlob,
+    csv_data: csvFuturesContractPriceData,
+    contract_object: futuresContract,
+    cleaning_config: priceFilterConfig,
+    interactive_mode: bool = False,
+):
+    barchart_prices = csv_data.get_merged_prices_for_contract_object(contract_object)
+    frequency = Frequency.Mixed
+
+    if interactive_mode:
+        print("\n\n Manually checking prices for %s \n\n" % str(contract_object))
+        max_price_spike = cleaning_config.max_price_spike
+
+        price_data = diagPrices(data)
+        old_prices = price_data.get_merged_prices_for_contract_object(
+            contract_object,
+        )
+        new_prices_checked = manual_price_checker(
+            old_prices,
+            barchart_prices,
+            column_to_check="FINAL",
+            delta_columns=["OPEN", "HIGH", "LOW"],
+            type_new_data=futuresContractPrices,
+            max_price_spike=max_price_spike,
+        )
+        check_for_spike = False
+    else:
+        new_prices_checked = copy(barchart_prices)
         check_for_spike = True
 
     error_or_rows_added = price_updating_or_errors(

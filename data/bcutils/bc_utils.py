@@ -107,14 +107,14 @@ def save_prices_for_contract(
         filename = f"{instrument}_{datecode}00.csv"
         full_path = f"{path}/{filename}"
 
-        # do we have this file already?
-        if os.path.isfile(full_path):
-            if file_is_placeholder_for_no_hourly_data(full_path):
-                logging.info("Placeholder found indicating missing hourly data, switching to daily")
-                period = 'daily'
-            else:
-                logging.info(f"Data for contract '{contract}' already downloaded, skipping\n")
-                return HistoricalDataResult.EXISTS
+        # # do we have this file already?
+        # if os.path.isfile(full_path):
+        #     if file_is_placeholder_for_no_hourly_data(full_path):
+        #         logging.info("Placeholder found indicating missing hourly data, switching to daily")
+        #         period = 'daily'
+        #     else:
+        #         logging.info(f"Data for contract '{contract}' already downloaded, skipping\n")
+        #         return HistoricalDataResult.EXISTS
 
         # we need to work out a date range for which we want the prices
 
@@ -408,8 +408,9 @@ def build_inverse_map(contract_map):
     return {v['code']: k for k, v in contract_map.items()}
 
 
-if __name__ == "__main__":
-
+def download_barchart_prices_for_contract_map(
+    contract_map: dict, save_directory: str, force_daily: bool
+):
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(message)s',
@@ -422,12 +423,22 @@ if __name__ == "__main__":
     }
     bc_config = {k: os.environ.get(v) for k, v in config.items() if v in os.environ}
 
+    this_year = datetime.today().year
+
     get_barchart_downloads(
         create_bc_session(config_obj=bc_config),
-        contract_map=CONTRACT_MAP[INSTRUMENTS_I_TRADE],
-        save_directory="/home/ze/pysystemtrade/data/bcutils/data/",
-        start_year=2021,
-        end_year=2024,
+        contract_map=contract_map,
+        save_directory=save_directory,
+        start_year=this_year,
+        end_year=this_year + 1,
         dry_run=False,
-        force_daily=True,
+        force_daily=force_daily,
+    )
+
+
+if __name__ == "__main__":
+    download_barchart_prices_for_contract_map(
+        {k: v for k, v in CONTRACT_MAP.items() if k in INSTRUMENTS_I_TRADE},
+        save_directory="/home/ze/pysystemtrade/data/bcutils/data",
+        force_daily=True
     )

@@ -106,7 +106,7 @@ class dataOrders(object):
 
     @property
     def db_stop_loss_broker_historic_orders_data(self) -> stopLossBrokerHistoricOrdersData:
-        return self.db_stop_loss_broker_historic_orders
+        return self.data.db_stop_loss_broker_historic_orders
 
     def add_historic_orders_to_data(
         self,
@@ -275,7 +275,7 @@ class dataOrders(object):
     ) -> list:
         # remove split orders
         order_id_list = (
-            self.db_broker_historic_orders_data.get_list_of_order_ids_in_date_range(
+            self.db_stop_loss_broker_historic_orders_data.get_list_of_order_ids_in_date_range(
                 period_start=period_start, period_end=period_end
             )
         )
@@ -384,16 +384,16 @@ class dataOrders(object):
         return instrument_order
 
     def get_current_stop_loss_contract_order_from_order_id(self, order_id: int) -> contractOrder:
-        order = self.db_stop_loss_contract_stack_data.get_list_of_orders_from_order_id_list(
-            [order_id]
-        )[0]
+        order = self.db_stop_loss_contract_stack_data.get_order_with_id_from_stack(
+            order_id
+        )
 
         return order
 
     def get_current_stop_loss_broker_order_from_order_id(self, order_id: int) -> brokerOrder:
-        order = self.db_stop_loss_contract_stack_data.get_list_of_orders_from_order_id_list(
-            [order_id]
-        )[0]
+        order = self.db_stop_loss_broker_stack_data.get_order_with_id_from_stack(
+            order_id
+        )
 
         return order
 
@@ -413,7 +413,7 @@ class dataOrders(object):
 
         order = self.get_historic_stop_loss_broker_order_from_order_id(order_id)
 
-        contract_order = self.get_parent_stop_loss_contract_order_for_current_stop_loss_broker_order_id(
+        contract_order = self.get_parent_stop_loss_contract_order_for_historic_stop_loss_broker_order_id(
             order_id
         )
         instrument_order = (

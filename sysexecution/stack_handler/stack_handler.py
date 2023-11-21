@@ -63,5 +63,3 @@ class stackHandler(
         self.instrument_stack.remove_all_deactivated_orders_from_stack()
         self.contract_stack.remove_all_deactivated_orders_from_stack()
         self.broker_stack.remove_all_deactivated_orders_from_stack()
-        self.stop_loss_contract_stack.remove_all_deactivated_orders_from_stack()
-        self.stop_loss_broker_stack.remove_all_deactivated_orders_from_stack()

@@ -452,9 +452,12 @@ class brokerOrderWithParentInformation(brokerOrder):
         order.grandparent_fill = instrument_order.fill
         order.grandparent_filled_price = instrument_order.filled_price
         order.grandparent_fill_datetime = instrument_order.fill_datetime
-        order.stop_loss_percent_difference = (
-            (order.stop_price/order.grandparent_filled_price) - 1.0
-        )
+        if order.stop_price is not None:
+            order.stop_loss_percent_difference = (
+                (order.stop_price/order.grandparent_filled_price) - 1.0
+            )
+        else:
+            order.stop_loss_percent_difference = None
 
         order.buy_or_sell = order.trade.buy_or_sell()
 

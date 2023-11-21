@@ -139,6 +139,13 @@ account_curve_report_config = reportConfig(
     output="email",
 )
 
+stop_loss_report_config = reportConfig(
+    title="Stop loss report",
+    function="sysproduction.reporting.stop_loss_report.stop_loss_report",
+    calendar_days_back=1,
+    output="email",
+)
+
 ## The reports will be run in this order
 report_config_defaults = dict(
     slippage_report=slippage_report_config,
@@ -157,4 +164,5 @@ report_config_defaults = dict(
     remove_markets_report=remove_markets_report_config,
     market_monitor_report=market_monitor_report_config,
     account_curve_report=account_curve_report_config,
+    stop_loss_report=stop_loss_report_config,
 )

@@ -31,9 +31,9 @@ def stop_loss_report(
     list_of_table_names = [
         "table_of_stop_loss_orders_overview",
         "table_of_stop_loss_fills",
-        "table_of_stop_loss_raw_slippage",
-        "table_of_stop_loss_vol_slippage",
-        "table_of_stop_loss_cash_slippage",
+        # "table_of_stop_loss_raw_slippage",
+        # "table_of_stop_loss_vol_slippage",
+        # "table_of_stop_loss_cash_slippage",
         "table_of_stop_loss_overrides_and_delay_days"
     ]
 

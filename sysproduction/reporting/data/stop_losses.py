@@ -1,12 +1,14 @@
 import datetime
 from collections import namedtuple
 from copy import copy
+from typing import List
 
 import numpy as np
 import pandas as pd
 
 from syscore.genutils import transfer_object_attributes
 from syscore.pandas.pdutils import make_df_from_list_of_named_tuple
+from sysobjects.production.delay_days_after_stop_loss import DelayDays
 from sysproduction.data.broker import dataBroker
 from sysproduction.data.instruments import diagInstruments
 from sysproduction.data.orders import dataOrders
@@ -20,7 +22,9 @@ from sysexecution.orders.broker_orders import (
     stopLossBrokerOrderWithInstrumentAndParentInfo,
 )
 from sysdata.data_blob import dataBlob
-from sysobjects.production.override import STOP_LOSS_OVERRIDE
+from sysobjects.production.override import STOP_LOSS_OVERRIDE, Override
+
+from dataclasses import dataclass
 
 def get_current_stop_loss_broker_orders(data: dataBlob):
     data_orders = dataOrders(data)
@@ -65,8 +69,8 @@ currentOrdersData = namedtuple(
         "instrument_strategy_position",
         "grandparent_filled_price",
         "grandparent_fill_datetime",
-        "stop_price"
-        "stop_loss_percent_difference"
+        "stop_price",
+        "stop_loss_percent_difference",
         "trade",
         "buy_or_sell",
     ],
@@ -83,7 +87,7 @@ def get_recent_filled_stop_loss_broker_order_ids(
     orders_as_list = [
         get_tuple_object_for_historic_orders_from_order_id(data, order_id) for order_id in order_id_list
     ]
-    pdf = make_df_from_list_of_named_tuple(currentOrdersData, orders_as_list)
+    pdf = make_df_from_list_of_named_tuple(tradesData, orders_as_list)
 
     return pdf
 
@@ -119,7 +123,7 @@ tradesData = namedtuple(
         "buy_or_sell",
         "parent_limit_price",
         "commission",
-        "stop_price"
+        "stop_price",
     ],
 )
 
@@ -143,9 +147,9 @@ def get_stop_loss_overrides_and_delay_days_as_df(data: dataBlob):
     instrument_codes = [key.instrument_code for key in stop_loss_overrides.keys()]
     strategy_names = [key.strategy_name for key in stop_loss_overrides.keys()]
     overrides = list(stop_loss_overrides.values())
-    delay_days = [value.delay_days for value in corresponding_delay_days.values()]
+    delay_days = [value.delay_days for value in corresponding_delay_days]
 
-    overrides_and_delays = dict(
+    overrides_and_delays = OverridesAndDelays(
         instrument_code=instrument_codes,
         strategy_name=strategy_names,
         override=overrides,
@@ -181,3 +185,12 @@ overrideDelayDaysData = namedtuple(
         'delay_days',
     ],
 )
+
+@dataclass
+class OverridesAndDelays:
+    instrument_code: List[str]
+    strategy_name: List[str]
+    override: List[Override]
+    delay_days: List[DelayDays]
+
+

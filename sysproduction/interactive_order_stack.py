@@ -707,11 +707,9 @@ def create_fx_trade(data):
 
 def view_completed_contract_orders(data):
     data_orders = dataOrders(data)
-    data_control_process = diagControlProcess(data)
-    start_time = datetime.combine(
-        datetime.date(datetime.today()),
-        data_control_process.get_start_time('run_stack_handler')
-    )
+    diag_control_process = diagControlProcess(data)
+    start_time = diag_control_process.get_control_for_process_name('run_stack_handler').last_start_time
+
     completed_order_ids = data_orders.get_historic_contract_order_ids_in_date_range(
         period_start=start_time, period_end=datetime.now()
     )
@@ -746,7 +744,7 @@ def generate_stop_loss_orders_from_fills(data):
             contract_order
         )
         print("CREATED STOP LOSS ORDER:")
-        if stop_loss_order is not None:
+        if stop_loss_order is not None and stop_loss_order is not missing_order:
             print(stop_loss_order.order)
 
 
