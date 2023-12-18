@@ -20,6 +20,7 @@ from sysexecution.trade_qty import tradeQuantity
 
 from sysproduction.data.positions import updatePositions
 from sysproduction.data.controls import updateOverrides, updateDelayDays, diagOverrides
+from sysproduction.data.orders import dataOrders
 
 from sysobjects.production.override import STOP_LOSS_OVERRIDE
 from sysobjects.production.delay_days_after_stop_loss import DelayDays
@@ -236,7 +237,13 @@ class stackHandlerForStopLossFills(stackHandlerForStopLossCompletions):
     def set_stop_loss_override_for_instrument_strategy_from_contract_order(
         self, contract_order: contractOrder
     ):
-        instrument_strategy = contract_order.instrument_strategy
+        data_orders = dataOrders(self.data)
+        parent_instrument_order_id = contract_order.parent
+        parent_instrument_order = data_orders.get_historic_instrument_order_from_order_id(
+            parent_instrument_order_id
+        )
+
+        instrument_strategy = parent_instrument_order.instrument_strategy
 
         update_overrides = updateOverrides(self.data)
         log = contract_order.log_with_attributes(self.log)
@@ -259,7 +266,13 @@ class stackHandlerForStopLossFills(stackHandlerForStopLossCompletions):
     def set_delay_days_for_instrument_strategy_override_from_contract_order(
         self, contract_order: contractOrder
     ):
-        instrument_strategy = contract_order.instrument_strategy
+        data_orders = dataOrders(self.data)
+        parent_instrument_order_id = contract_order.parent
+        parent_instrument_order = data_orders.get_historic_instrument_order_from_order_id(
+            parent_instrument_order_id
+        )
+
+        instrument_strategy = parent_instrument_order.instrument_strategy
         delay_days_to_set = DelayDays(contract_order.stop_loss_info.delay_days)
 
         diag_overrides = diagOverrides(self.data)

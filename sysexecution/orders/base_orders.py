@@ -247,6 +247,10 @@ class Order(object):
     def trade(self):
         return self._trade
 
+    @trade.setter
+    def trade(self, trade: tradeQuantity):
+        self._trade = trade
+
     def as_single_trade_qty_or_error(self) -> int:
         return self.trade.as_single_trade_qty_or_error()
 

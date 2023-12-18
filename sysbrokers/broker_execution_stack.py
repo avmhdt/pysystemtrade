@@ -51,6 +51,11 @@ class brokerExecutionStackData(brokerOrderStackData):
         # throw orderCannotBeModified if can't be modified
         raise NotImplementedError
 
+    def modify_order_size_for_order_on_stack(
+        self, broker_order: brokerOrder, new_size: int
+    ):
+        raise NotImplementedError
+
     @property
     def data(self):
         return self._data

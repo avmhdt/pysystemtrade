@@ -53,7 +53,7 @@ class stackHandler(
         # and then completions
         self.log.debug("Processing stop loss completions")
         self.handle_completed_stop_loss_orders(
-            allow_partial_completions=True, allow_zero_completions=True
+            allow_partial_completions=True, allow_zero_completions=False
         )
 
         self.remove_all_deactivated_orders_from_stack()

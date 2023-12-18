@@ -526,3 +526,11 @@ class dataBroker(productionDataLayerGeneric):
         )
 
         return total_account_value_in_base_currency
+
+    def modify_order_size_for_order_on_stack(
+        self, broker_order: brokerOrder, new_size: int
+    ):
+        self.broker_execution_stack_data.modify_order_size_for_order_on_stack(
+            broker_order, new_size
+        )
+

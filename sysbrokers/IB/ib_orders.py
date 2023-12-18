@@ -27,6 +27,7 @@ from sysexecution.order_stacks.broker_order_stack import orderWithControls
 from sysexecution.orders.list_of_orders import listOfOrders
 from sysexecution.orders.broker_orders import brokerOrder
 from sysexecution.tick_data import tickerObject
+from sysexecution.trade_qty import tradeQuantity
 
 from syslogging.logger import *
 
@@ -479,6 +480,49 @@ class ibExecutionStackData(brokerExecutionStackData):
         status = self._get_status_for_trade_object(original_trade_object)
 
         return status
+
+    def modify_order_size_for_order_on_stack(
+        self, broker_order: brokerOrder, new_size: int
+    ):
+        log = broker_order.log_with_attributes(self.log)
+        matched_control_order = (
+            self.match_db_broker_order_to_control_order_from_brokers(broker_order)
+        )
+        if matched_control_order is missing_order:
+            log.warning("Couldn't modify non existent order")
+            return None
+
+        self.modify_order_size_given_control_object(matched_control_order)
+        log.debug("Modified order size for %s" % str(broker_order))
+
+    def modify_order_size_given_control_object(
+        self, broker_order_with_controls: ibOrderWithControls, new_size: int
+    ):
+
+        ## throws orderCannotBeModified
+        self.check_order_can_be_modified_given_control_object_throw_error_if_not(
+            broker_order_with_controls
+        )
+
+        original_order_object = broker_order_with_controls.control_object.trade.order
+        original_contract_object_with_legs = (
+            broker_order_with_controls.control_object.ibcontract_with_legs
+        )
+
+        _not_used_new_trade_object = (
+            self.ib_client.modify_order_size_given_original_objects(
+                original_order_object,
+                original_contract_object_with_legs,
+                new_size,
+            )
+        )
+
+        # we don't actually replace the trade object
+        # otherwise if the order size isn't changed, it will think it has been
+        broker_order_with_controls.order.trade = tradeQuantity(new_size)
+        broker_order_with_controls.update_order()
+
+        return broker_order_with_controls
 
 
 def add_trade_info_to_broker_order(

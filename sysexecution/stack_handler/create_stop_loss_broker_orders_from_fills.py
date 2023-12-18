@@ -22,6 +22,7 @@ from sysexecution.order_stacks.broker_order_stack import orderWithControls
 from sysexecution.stack_handler.roll_orders import ROLL_PSEUDO_STRATEGY
 from sysexecution.stack_handler.stop_loss_fills import stackHandlerForStopLossFills
 from sysexecution.algos.algo import Algo
+from sysobjects.production.tradeable_object import instrumentStrategy
 
 from sysproduction.data.controls import (
     dataLocks,
@@ -41,6 +42,8 @@ from sysexecution.orders.base_orders import (
 )
 
 from sysdata.data_blob import dataBlob
+
+STOP_LOSS_PSEUDO_STRATEGY = "_STOP_LOSS_PSEUDO_STRATEGY"
 
 
 class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
@@ -131,7 +134,9 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
         ]
 
         relevant_contract = filled_contract_order.futures_contract
-        instrument_strategy = filled_contract_order.instrument_strategy
+        stop_loss_instrument_strategy = instrumentStrategy(
+            STOP_LOSS_PSEUDO_STRATEGY, filled_contract_order.instrument_code,
+        )
 
         all_contract_positions_at_broker = data_broker.get_all_current_contract_positions()
         contract_position_at_broker = (
@@ -140,8 +145,8 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
 
         for order in recently_filled_stop_loss_contract_order_list:
             if order.futures_contract == relevant_contract and (
-                order.instrument_strategy == instrument_strategy
-                and order.fill_equals_desired_trade()
+                order.instrument_strategy == stop_loss_instrument_strategy and
+                order.fill_equals_desired_trade()
                 and contract_position_at_broker == 0
             ):
                 return True
@@ -205,17 +210,25 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
 
         log = filled_contract_order.log_with_attributes(self.log)
 
+        priced_contract = futuresContract(
+            instrument_object=filled_contract_order.instrument_code,
+            contract_date_object=filled_contract_order.tradeable_object.contract_date[0],  # [0] for priced contract
+        )
+        forward_contract = futuresContract(
+            instrument_object=filled_contract_order.instrument_code,
+            contract_date_object=filled_contract_order.tradeable_object.contract_date[1],  # [1] for forward contract
+        )
+
         # Get existing stop loss for priced contract:
         try:
             order_to_change_priced_contract = (
                 self.get_existing_stop_loss_order_for_futures_contract(
-                    filled_contract_order.tradeable_object[0].futures_contract,     # [0] for priced contract
-                    strategy_name=filled_contract_order.strategy_name,
+                    priced_contract,
                 )
             )
         except Exception:
             msg = "More than 1 existing stop loss orders for contract %s!" % (
-                filled_contract_order.tradeable_object[0].futures_contract
+                priced_contract
             )
             log.critical(msg)
             raise Exception(msg)
@@ -232,28 +245,29 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
         try:
             order_to_change_forward_contract = (
                 self.get_existing_stop_loss_order_for_futures_contract(
-                    filled_contract_order.tradeable_object[1].futures_contract,  # [1] for forward contract
-                    strategy_name=filled_contract_order.strategy_name,
+                    forward_contract,
                 )
             )
         except Exception:
             msg = "More than 1 existing stop loss orders for contract %s!" % (
-                filled_contract_order.tradeable_object[1].futures_contract
+                forward_contract
             )
             log.critical(msg)
             raise Exception(msg)
 
         # If there is no stop loss for forward contract already:
         if order_to_change_forward_contract is missing_order:
-            filled_price_forward_contract = get_filled_prices_for_forward_contract_from_spread_fill(
-                self.data, filled_contract_order
+            filled_price_forward_contract = (
+                self.get_filled_prices_for_forward_contract_from_spread_fill(
+                    filled_contract_order
+                )
             )
             filled_order_for_forward_leg = contractOrder(
                 filled_contract_order.strategy_name,
                 filled_contract_order.instrument_code,
-                filled_contract_order.contract_date_key,
+                filled_contract_order.contract_date_key.split('_')[1],
                 filled_contract_order.trade[1],
-                fill=filled_contract_order.fill,
+                fill=filled_contract_order.fill[1],
                 filled_price=filled_price_forward_contract,
                 order_id=filled_contract_order.order_id,
                 parent=filled_contract_order.parent,
@@ -263,6 +277,8 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
                 roll_order=filled_contract_order.roll_order,
                 stop_loss_info=filled_contract_order.stop_loss_info,
             )
+
+            # log.debug("\n\n\n filled_order_for_forward_leg:\n %s" % str(filled_order_for_forward_leg))
 
             return self.create_and_send_new_stop_loss_broker_order(
                 filled_order_for_forward_leg
@@ -298,7 +314,6 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
             order_to_change = (
                 self.get_existing_stop_loss_order_for_futures_contract(
                     filled_contract_order.futures_contract,
-                    strategy_name=filled_contract_order.strategy_name,
                 )
             )
         except Exception:
@@ -308,11 +323,17 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
             log.critical(msg)
             raise Exception(msg)
 
-        change_order_by = filled_contract_order.stop_loss_info.change_order_by
+        if order_to_change is not missing_order:
+            change_order_by = filled_contract_order.stop_loss_info.change_order_by
 
-        self.change_existing_stop_loss_order_size(
-            order_to_change, change_order_by
-        )
+            self.change_existing_stop_loss_order_size(
+                order_to_change, change_order_by
+            )
+        else:
+            msg = "No stop loss order exists on stack for filled contract order %s. Did outright roll already close first contract?" % (
+                filled_contract_order
+            )
+            log.debug(msg)
 
         return None
 
@@ -344,7 +365,6 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
                     order_to_change = (
                         self.get_existing_stop_loss_order_for_futures_contract(
                             filled_contract_order.futures_contract,
-                            strategy_name=filled_contract_order.strategy_name,
                         )
                     )
                 except Exception:
@@ -369,7 +389,6 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
                     order_to_change = (
                         self.get_existing_stop_loss_order_for_futures_contract(
                             filled_contract_order.futures_contract,
-                            strategy_name=filled_contract_order.strategy_name,
                         )
                     )
                 except Exception:
@@ -379,11 +398,18 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
                     log.critical(msg)
                     raise Exception(msg)
 
-                change_order_by = filled_contract_order.stop_loss_info.change_order_by
+                if order_to_change is not missing_order:
+                    change_order_by = filled_contract_order.stop_loss_info.change_order_by
 
-                self.change_existing_stop_loss_order_size(
-                    order_to_change, change_order_by
-                )
+                    self.change_existing_stop_loss_order_size(
+                        order_to_change, change_order_by
+                    )
+
+                else:
+                    msg = "No stop loss order exists on stack for filled contract order %s. Did CLOSE roll already close first contract?" % (
+                        filled_contract_order
+                    )
+                    log.debug(msg)
 
                 return None
 
@@ -415,7 +441,9 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
         )
         
         relevant_contract = filled_contract_order.futures_contract
-        instrument_strategy = filled_contract_order.instrument_strategy
+        stop_loss_instrument_strategy = instrumentStrategy(
+            STOP_LOSS_PSEUDO_STRATEGY, filled_contract_order.instrument_code,
+        )
 
         contract_position_at_db = (
             diag_positions.get_position_for_contract(relevant_contract)
@@ -423,7 +451,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
 
         for order in list_of_orders_in_stack:
             if (order.futures_contract == relevant_contract and (
-                order.instrument_strategy == instrument_strategy
+                order.instrument_strategy == stop_loss_instrument_strategy      # instrument_strategy
             ) and (
                     order.trade.as_single_trade_qty_or_error() == -contract_position_at_db
                     and contract_position_at_db != 0
@@ -496,7 +524,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
         )
 
         stop_loss_contract_order = contractOrder(
-            filled_contract_order.strategy_name,
+            STOP_LOSS_PSEUDO_STRATEGY,       # filled_contract_order.strategy_name,
             filled_contract_order.instrument_code,
             filled_contract_order.contract_date_key,
             trade,
@@ -745,7 +773,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
         return broker_order_with_controls_and_order_id
 
     def get_existing_stop_loss_order_for_futures_contract(
-        self, futures_contract: futuresContract, strategy_name: str
+        self, futures_contract: futuresContract
     ) -> contractOrder:
 
         list_of_existing_stop_loss_orders = (
@@ -759,7 +787,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
         for existing_stop_loss_order in list_of_existing_stop_loss_orders:
             if existing_stop_loss_order.futures_contract == (
                 futures_contract
-            ) and existing_stop_loss_order.strategy_name == strategy_name:
+            ) and existing_stop_loss_order.strategy_name == STOP_LOSS_PSEUDO_STRATEGY:
                 list_of_stop_loss_orders_for_contract.append(existing_stop_loss_order)
 
         number_of_existing_orders_for_contract = len(list_of_stop_loss_orders_for_contract)
@@ -784,10 +812,17 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
 
         log = order_to_change.log_with_attributes(self.log)
         stop_loss_contract_stack = self.stop_loss_contract_stack
+        stop_loss_broker_stack = self.stop_loss_broker_stack
         trade_qty = order_to_change.trade.as_single_trade_qty_or_error()
+        data_broker = dataBroker(self.data)
 
         if change_order_by == -trade_qty:
             stop_loss_contract_stack.deactivate_order(order_to_change.order_id)
+            for broker_order_id in order_to_change.children:
+                stop_loss_broker_stack.deactivate_order(broker_order_id)
+                broker_order = stop_loss_broker_stack.get_order_with_id_from_stack(broker_order_id)
+                data_broker.cancel_order_on_stack(broker_order)
+
             return None
 
         definitely_change_order_by = self.apply_trade_limits_to_contract_order_size_change(
@@ -874,6 +909,7 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
         actual_child_broker_order = child_broker_order.order
         log = actual_child_broker_order.log_with_attributes(self.log)
         stop_loss_broker_stack = self.stop_loss_broker_stack
+        data_broker = dataBroker(self.data)
 
         try:
             stop_loss_broker_stack.change_existing_order_trade_qty(
@@ -881,11 +917,52 @@ class stackHandlerCreateStopLossBrokerOrders(stackHandlerForStopLossFills):
             )
         except Exception as e:
             error_msg = (
-                    "Tried to propagate stop loss contract order %s trade quantity change for to broker order %s but couldn't!! (condition %s) MAYBE STACK IS CORRUPTED"
-                    % (str(parent_contract_order), str(actual_child_broker_order), str(e))
+                "Tried to propagate stop loss contract order %s trade quantity change for to broker order %s but couldn't!! (condition %s) MAYBE STACK IS CORRUPTED"
+                % (str(parent_contract_order), str(actual_child_broker_order), str(e))
             )
             log.critical(error_msg)
             raise Exception(error_msg)
+
+        data_broker.modify_order_size_for_order_on_stack(
+            actual_child_broker_order,
+            parent_contract_order.trade.as_single_trade_qty_or_error()
+        )
+
+    def get_filled_prices_for_forward_contract_from_spread_fill(
+        self, filled_spread_order: contractOrder,
+    ) -> float:
+
+        log = filled_spread_order.log_with_attributes(self.log)
+        data_orders = dataOrders(self.data)
+
+        broker_children = filled_spread_order.children
+
+        if broker_children is no_children:
+            msg = "Filled contract spread order %s has no children. How can this be??" % (
+                str(filled_spread_order)
+            )
+            log.critical(msg)
+            raise Exception(msg)
+
+        broker_children = [
+            data_orders.get_historic_broker_order_from_order_id(broker_child) for
+            broker_child in broker_children
+        ]
+        filled_prices = [broker_child.leg_filled_price[1] for broker_child in broker_children]
+        forward_trade = filled_spread_order.trade[1]
+
+        if forward_trade > 0:
+            filled_price = min(filled_prices)
+        elif forward_trade < 0:
+            filled_price = max(filled_prices)
+        else:
+            msg = "Filled contract spread order %s has no forward trade, or equals zero. How can this be??" % (
+                str(filled_spread_order)
+            )
+            log.critical(msg)
+            raise Exception(msg)
+
+        return filled_price
 
 
 def resolve_inputs_to_stop_loss_order(
@@ -948,38 +1025,6 @@ def resolve_inputs_to_stop_loss_order(
     )
 
 
-def get_filled_prices_for_forward_contract_from_spread_fill(
-    data: dataBlob, filled_spread_order: contractOrder
-) -> float:
-
-    log = filled_spread_order.log_with_attributes(data.log)
-
-    broker_children = filled_spread_order.children
-
-    if broker_children is no_children:
-        msg = "Filled contract spread order %s has no children. How can this be??" % (
-            str(filled_spread_order)
-        )
-        log.critical(msg)
-        raise Exception(msg)
-
-    filled_prices = [broker_child.leg_filled_prices[1] for broker_child in broker_children]
-    forward_trade = filled_spread_order.trade[1]
-
-    if forward_trade > 0:
-        filled_price = min(filled_prices)
-    elif forward_trade < 0:
-        filled_price = max(filled_prices)
-    else:
-        msg = "Filled contract spread order %s has no forward trade, or equals zero. How can this be??" % (
-            str(filled_spread_order)
-        )
-        log.critical(msg)
-        raise Exception(msg)
-
-    return filled_price
-
-
 def resolve_stop_loss_price_for_min_move(
     data: dataBlob, futures_contract: futuresContract, stop_loss_price: float, reference_price: float
 ) -> float:
@@ -994,8 +1039,9 @@ def resolve_stop_loss_price_for_min_move(
 
     # data.log.debug("%s\n\n\n" % str(instrument_metadata))
 
+    min_move_after_magnifier = min_move * price_magnifier
     new_stop_loss_price = (
-        ((stop_loss_price - reference_price) // min_move) * min_move + reference_price
+        ((stop_loss_price - reference_price) // min_move_after_magnifier) * min_move_after_magnifier + reference_price
     )
 
     if 'e' in str(min_move):

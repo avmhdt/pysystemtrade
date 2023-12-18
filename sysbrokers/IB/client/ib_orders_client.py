@@ -214,3 +214,24 @@ class ibOrdersClient(ibContractsClient):
         )
 
         return new_trade_with_contract
+
+    def modify_order_size_given_original_objects(
+        self,
+        original_order_object: ibOrder,
+        original_contract_object_with_legs: ibcontractWithLegs,
+        new_order_size,
+    ) -> tradeWithContract:
+
+        original_contract_object = original_contract_object_with_legs.ibcontract
+        original_order_object.totalQuantity = new_order_size
+
+        new_trade_object = self.ib.placeOrder(
+            original_contract_object, original_order_object
+        )
+
+        new_trade_with_contract = tradeWithContract(
+            original_contract_object_with_legs, new_trade_object
+        )
+
+        return new_trade_with_contract
+

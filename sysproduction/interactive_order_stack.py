@@ -120,6 +120,7 @@ nested_menu_of_options = {
         33: "Lock/unlock instrument code",
         34: "Unlock all instruments",
         35: "Remove Algo lock on contract order",
+        36: "Cancel stop loss broker order"
     },
     4: {
         40: "Delete entire stack (CAREFUL!)",
@@ -1137,7 +1138,6 @@ def not_defined(data):
 def cancel_broker_order(data):
     view_broker_order_list(data)
     view_broker_stack(data)
-    view_stop_loss_broker_stack(data)
     stack_handler = stackHandler(data)
     broker_order_id = get_input_from_user_and_convert_to_type(
         "Which order ID?", type_expected=int, default_value="ALL", default_str="for all"
@@ -1149,6 +1149,22 @@ def cancel_broker_order(data):
         stack_handler.try_and_cancel_all_broker_orders_and_return_list_of_orders()
     else:
         stack_handler.cancel_broker_order_with_id_and_return_order(broker_order_id)
+
+
+def cancel_stop_loss_broker_order(data):
+    view_broker_order_list(data)
+    view_stop_loss_broker_stack(data)
+    stack_handler = stackHandler(data)
+    broker_order_id = get_input_from_user_and_convert_to_type(
+        "Which order ID?", type_expected=int, default_value="ALL", default_str="for all"
+    )
+    ans = input("Are you sure? (Y/other)")
+    if ans != "Y":
+        return None
+    if broker_order_id == "ALL":
+        stack_handler.try_and_cancel_all_stop_loss_broker_orders_and_return_list_of_orders()
+    else:
+        stack_handler.cancel_stop_loss_broker_order_with_id_and_return_order(broker_order_id)
 
 
 def instrument_locking(data):
@@ -1209,6 +1225,7 @@ dict_of_functions = {
     33: instrument_locking,
     34: all_instrument_unlock,
     35: clear_algo_on_order,
+    36: cancel_stop_loss_broker_order,
     40: delete_entire_stack,
     41: delete_specific_order,
     42: end_of_day,

@@ -41,7 +41,6 @@ class stackHandlerCancelAndModify(stackHandlerCore):
         self,
     ) -> listOfOrders:
         list_of_broker_order_ids = self.broker_stack.get_list_of_order_ids()
-        list_of_broker_order_ids += self.stop_loss_broker_stack.get_list_of_order_ids()
         list_of_broker_orders = []
         for broker_order_id in list_of_broker_order_ids:
             broker_order = self.cancel_broker_order_with_id_and_return_order(
@@ -60,9 +59,7 @@ class stackHandlerCancelAndModify(stackHandlerCore):
         broker_order = self.broker_stack.get_order_with_id_from_stack(broker_order_id)
 
         if broker_order is missing_order:
-            broker_order = self.stop_loss_broker_stack.get_order_with_id_from_stack(broker_order_id)
-            if broker_order is missing_order:
-                return missing_order
+            return missing_order
 
         if broker_order.fill_equals_desired_trade():
             # no need to cancel
@@ -126,3 +123,39 @@ class stackHandlerCancelAndModify(stackHandlerCore):
                 "Broker order %s could not be cancelled within time limit; might be a position break"
                 % broker_order
             )
+
+    def try_and_cancel_all_stop_loss_broker_orders_and_return_list_of_orders(
+        self,
+    ) -> listOfOrders:
+        list_of_broker_order_ids = self.stop_loss_broker_stack.get_list_of_order_ids()
+        list_of_broker_orders = []
+        for broker_order_id in list_of_broker_order_ids:
+            broker_order = self.cancel_stop_loss_broker_order_with_id_and_return_order(
+                broker_order_id
+            )
+            if broker_order is not missing_order:
+                list_of_broker_orders.append(broker_order)
+
+        list_of_broker_orders = listOfOrders(list_of_broker_orders)
+
+        return list_of_broker_orders
+
+    def cancel_stop_loss_broker_order_with_id_and_return_order(
+        self, stop_loss_broker_order_id: int
+    ) -> brokerOrder:
+        broker_order = self.stop_loss_broker_stack.get_order_with_id_from_stack(stop_loss_broker_order_id)
+
+        if broker_order is missing_order:
+            return missing_order
+
+        if broker_order.fill_equals_desired_trade():
+            # no need to cancel
+            return missing_order
+
+        log = broker_order.log_with_attributes(self.log)
+        log.debug("Cancelling order on stop loss stack with broker %s" % str(broker_order))
+
+        data_broker = self.data_broker
+        data_broker.cancel_order_on_stack(broker_order)
+
+        return broker_order
