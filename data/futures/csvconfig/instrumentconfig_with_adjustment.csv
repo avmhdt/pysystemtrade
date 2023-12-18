@@ -1,0 +1,144 @@
+Instrument,Description,Pointsize,Adjustment,Currency,Slippage,PerBlock,Region,AssetClass,Percentage,PerTrade
+AW,Bloomberg Commodity Index Futures,100.0,1.0,USD,0.01,1.87,US,Ags,0,0
+GD,S&P-GSCI Commodity Index Futures,250.0,1.0,USD,0.05,2.97,US,Ags,0,0
+CB,Cash-settled Butter Futures,20000.0,0.01,USD,0.00025,2.97,US,Ags,0,0
+GNF,Nonfat Dry Milk Futures,44000.0,0.01,USD,0.00025,2.97,US,Ags,0,0
+GDK,Class IV Milk Futures,200000.0,1.0,USD,0.01,2.97,US,Ags,0,0
+DY,Dry Whey Futures,44000.0,0.01,USD,0.00025,2.97,US,Ags,0,0
+ZC,Corn Futures,5000.0,0.01,USD,0.0025,2.97,US,Ags,0,0
+ZW,Chicago SRW Wheat Futures,5000.0,0.01,USD,0.0025,2.97,US,Ags,0,0
+KE,KC HRW Wheat Futures,5000.0,0.01,USD,0.0025,2.97,US,Ags,0,0
+ZR,Rough Rice Futures,2000.0,0.01,USD,0.005,2.97,US,Ags,0,0
+XC,Mini-Corn Futures,1000.0,0.01,USD,0.00125,1.9,US,Ags,0,0
+ZO,Oats Futures,5000.0,0.01,USD,0.0025,2.97,US,Ags,0,0
+XW,Mini-sized Chicago SRW Wheat Futures,1000.0,0.01,USD,0.00125,1.9,US,Ags,0,0
+LE,Live Cattle Futures,40000.0,0.01,USD,0.00025,2.97,US,Ags,0,0
+HE,Lean Hog Futures,40000.0,0.01,USD,0.00025,2.97,US,Ags,0,0
+GF,Feeder Cattle Futures,50000.0,0.01,USD,0.00025,2.97,US,Ags,0,0
+LBR,Lumber Futures,27500.0,1.0,USD,0.5,2.37,US,Ags,0,0
+ZS,Soybean Futures,5000.0,0.01,USD,0.0025,2.97,US,Ags,0,0
+ZM,Soybean Meal Futures,100.0,1.0,USD,0.1,2.97,US,Ags,0,0
+ZL,Soybean Oil Futures,60000.0,0.01,USD,0.0001,2.97,US,Ags,0,0
+XK,Mini Soybean Futures,1000.0,0.01,USD,0.00125,1.9,US,Ags,0,0
+BTC,Bitcoin Futures,5.0,1.0,USD,5.0,11.02,US,Cryptocurrencies,0,0
+MBT,Micro Bitcoin Futures,0.1,1.0,USD,5.0,3.27,US,Cryptocurrencies,0,0
+MET,Micro Ether Futures,0.1,1.0,USD,0.5,0.32,US,Cryptocurrencies,0,0
+ETH,Ether Futures,50.0,1.0,USD,0.5,7.02,US,Cryptocurrencies,0,0
+CL,Crude Oil Futures,1000.0,1.0,USD,0.01,2.37,US,Energy,0,0
+BZ,Brent Last Day Financial Futures,1000.0,1.0,USD,0.01,1.22,US,Energy,0,0
+MCL,Micro WTI Crude Oil Futures,100.0,1.0,USD,0.01,0.77,US,Energy,0,0
+QM,E-mini Crude Oil Futures,500.0,1.0,USD,0.025,2.07,US,Energy,0,0
+NG,Henry Hub Natural Gas Futures,10000.0,1.0,USD,0.00025,2.37,US,Energy,0,0
+HH,Natural Gas (Henry Hub) Last-day Financial Futures,10000.0,1.0,USD,0.00025,2.32,US,Energy,0,0
+QG,E-mini Natural Gas Futures,2500.0,1.0,USD,0.005,1.37,US,Energy,0,0
+RB,RBOB Gasoline Futures,42000.0,1.0,USD,0.0001,2.37,US,Energy,0,0
+HO,NY Harbor ULSD Futures,42000.0,1.0,USD,0.0001,2.37,US,Energy,0,0
+QU,E-mini RBOB Gasoline Futures,21000.0,1.0,USD,0.001,2.07,US,Energy,0,0
+MRB,Micro RBOB Gasoline Futures,4200.0,1.0,USD,0.0001,0.87,US,Energy,0,0
+QH,E-mini NY Harbor ULSD Futures,21000.0,1.0,USD,0.01,2.07,US,Energy,0,0
+YM,E-mini Dow Jones Industrial Average Index Futures,5.0,1.0,USD,1.0,2.2,US,Equity,0,0
+RX,Dow Jones Real Estate Futures,100.0,1.0,USD,0.1,2.2,US,Equity,0,0
+MYM,Micro E-mini Dow Jones Industrial Average Index Futures,0.5,1.0,USD,1.0,0.62,US,Equity,0,0
+NQ,E-mini Nasdaq-100 Futures,20.0,1.0,USD,0.25,2.2,US,Equity,0,0
+MNQ,Micro E-mini Nasdaq-100 Index Futures,2.0,1.0,USD,0.25,0.62,US,Equity,0,0
+RTY,E-mini  Russell 2000 Index Futures,50.0,1.0,USD,0.1,2.2,US,Equity,0,0
+M2K,Micro E-mini Russell 2000 Index Futures,5.0,1.0,USD,0.1,0.62,US,Equity,0,0
+RS1,E-mini Russell 1000 Index Futures,50.0,1.0,USD,0.1,2.2,US,Equity,0,0
+R2G,E-mini  Russell 2000 Growth Index Futures,50.0,1.0,USD,0.1,2.2,US,Equity,0,0
+RSG,E-mini Russell 1000 Growth Index Futures,50.0,1.0,USD,0.1,2.2,US,Equity,0,0
+ES,E-mini S&P 500 Futures,50.0,1.0,USD,0.25,2.2,US,Equity,0,0
+MES,Micro E-mini S&P 500 Index Futures,5.0,1.0,USD,0.25,0.62,US,Equity,0,0
+EMD,E-mini S&P MidCap 400 Futures,100.0,1.0,USD,0.1,2.2,US,Equity,0,0
+XAF,E-mini Financial Select Sector Futures,250.0,1.0,USD,0.05,2.15,US,Equity,0,0
+XAE,E-mini Energy Select Sector Futures,100.0,1.0,USD,0.1,2.15,US,Equity,0,0
+XAI,E-mini Industrial Select Sector Futures,100.0,1.0,USD,0.1,2.15,US,Equity,0,0
+XAU,E-mini Utilities Select Sector Futures,100.0,1.0,USD,0.1,2.15,US,Equity,0,0
+XAV,E-mini Health Care Select Sector Futures,100.0,1.0,USD,0.1,2.15,US,Equity,0,0
+XAP,E-mini Consumer Staples Select Sector Futures,100.0,1.0,USD,0.1,2.15,US,Equity,0,0
+XAK,E-mini Technology Select Sector Futures,100.0,1.0,USD,0.1,2.15,US,Equity,0,0
+XAR,E-mini Real Estate Select Sector Futures,250.0,1.0,USD,0.05,2.15,US,Equity,0,0
+XAB,E-mini Materials Select Sector Futures,100.0,1.0,USD,0.1,2.15,US,Equity,0,0
+XAY,E-mini Consumer Discretionary Select Sector Futures,100.0,1.0,USD,0.1,2.15,US,Equity,0,0
+XAZ,E-mini Communication Services Select Sector Futures,250.0,1.0,USD,0.05,2.15,US,Equity,0,0
+6M,Mexican Peso Futures,500000.0,1.0,USD,1e-05,2.47,US,FX,0,0
+6L,Brazilian Real Futures,100000.0,1.0,USD,5e-05,2.47,US,FX,0,0
+6Z,South African Rand Futures,500000.0,1.0,USD,2.5e-05,2.47,US,FX,0,0
+SIR,Indian Rupee/USD Futures,50000.0,0.01,USD,0.0001,2.47,US,FX,0,0
+PLN,Polish Zloty Futures,500000.0,1.0,USD,2e-05,2.47,US,FX,0,0
+KRW,Korean Won Futures,125000000.0,1.0,USD,1e-07,2.47,US,FX,0,0
+TRL,Turkish Lira/US Dollar (TRY/USD) Future,1000000.0,1.0,USD,5e-06,2.47,US,FX,0,0
+ILS,Israeli Shekel Futures,1000000.0,1.0,USD,1e-05,2.47,US,FX,0,0
+HUF,Hungarian Forint Futures,30000000.0,1.0,USD,2e-07,2.47,US,FX,0,0
+CZK,Czech Koruna Futures,4000000.0,1.0,USD,2e-06,2.47,US,FX,0,0
+6E,Euro FX Futures,125000.0,1.0,USD,5e-05,2.47,US,FX,0,0
+6B,British Pound Futures,62500.0,1.0,USD,0.0001,2.47,US,FX,0,0
+6J,Japanese Yen Futures,12500000.0,1.0,USD,5e-07,2.47,US,FX,0,0
+6C,Canadian Dollar Futures,100000.0,1.0,USD,5e-05,2.47,US,FX,0,0
+6A,Australian Dollar Futures,100000.0,1.0,USD,5e-05,2.47,US,FX,0,0
+6S,Swiss Franc Futures,125000.0,1.0,USD,5e-05,2.47,US,FX,0,0
+6N,New Zealand Dollar Futures,100000.0,1.0,USD,5e-05,2.47,US,FX,0,0
+M6E,Micro EUR/USD Futures,12500.0,1.0,USD,0.0001,0.41,US,FX,0,0
+E7,E-mini Euro FX Futures,62500.0,1.0,USD,0.0001,1.37,US,FX,0,0
+M6A,Micro AUD/USD Futures,10000.0,1.0,USD,0.0001,0.41,US,FX,0,0
+M6B,Micro GBP/USD Futures,6250.0,1.0,USD,0.0001,0.41,US,FX,0,0
+MCD,Micro CAD/USD Futures,10000.0,1.0,USD,0.0001,0.41,US,FX,0,0
+NOK,Norwegian Krone Futures,2000000.0,1.0,USD,1e-05,2.47,US,FX,0,0
+SEK,Swedish Krona Futures,2000000.0,1.0,USD,1e-05,2.47,US,FX,0,0
+MSF,Micro CHF/USD Futures,12500.0,1.0,USD,0.0001,0.41,US,FX,0,0
+J7,E-mini Japanese Yen Futures,6250000.0,1.0,USD,1e-06,1.37,US,FX,0,0
+MIR,Micro INR/USD Futures,10000.0,0.01,USD,0.0001,0.41,US,FX,0,0
+SR3,Three-Month SOFR Futures,2500.0,1.0,USD,0.0025,2.12,US,STIRS,0,0
+GE,Eurodollar Futures,2500.0,1.0,USD,0.0025,2.12,US,STIRS,0,0
+ZQ,30 Day Federal Funds Futures,4167.0,1.0,USD,0.005,1.83,US,STIRS,0,0
+SR1,One-Month SOFR Futures,4167.0,1.0,USD,0.0025,2.12,US,STIRS,0,0
+ZF,5-Year T-Note Futures,1000.0,1.0,USD,0.0078125,1.52,US,Bond,0,0
+ZN,10-Year T-Note Futures,1000.0,1.0,USD,0.015625,1.67,US,Bond,0,0
+ZT,2-Year T-Note Futures,2000.0,1.0,USD,0.00390625,1.52,US,Bond,0,0
+TN,Ultra 10-Year U.S. Treasury Note Futures,1000.0,1.0,USD,0.015625,1.67,US,Bond,0,0
+UB,Ultra U.S. Treasury Bond Futures,1000.0,1.0,USD,0.03125,1.82,US,Bond,0,0
+ZB,U.S. Treasury Bond Futures,1000.0,1.0,USD,0.03125,1.74,US,Bond,0,0
+Z3N,3-Year T-Note Futures,2000.0,1.0,USD,0.003906235,1.52,US,Bond,0,0
+10Y,Micro 10-Year Yield Futures,1000.0,1.0,USD,0.001,0.57,US,Bond,0,0
+2YY,Micro 2-Year Yield Futures,1000.0,1.0,USD,0.001,0.57,US,Bond,0,0
+TWE,20-Year U.S. Treasury Bond Futures,1000.0,1.0,USD,0.03125,1.74,US,Bond,0,0
+30Y,Micro 30-Year Yield Futures,1000.0,1.0,USD,0.001,0.57,US,Bond,0,0
+5YY,Micro 5-Year Yield Futures,1000.0,1.0,USD,0.001,0.57,US,Bond,0,0
+HG,Copper Futures,25000.0,1.0,USD,0.0005,2.42,US,Metals,0,0
+ALI,Aluminum Futures,25.0,1.0,USD,0.25,3.37,US,Metals,0,0
+MHG,Micro Copper Futures,2500.0,1.0,USD,0.0005,0.87,US,Metals,0,0
+QC,E-mini Copper Futures,12500.0,1.0,USD,0.002,1.62,US,Metals,0,0
+HRC,U.S. Midwest Domestic Hot-Rolled Coil Steel (CRU) Index Futures,20.0,1.0,USD,1.0,5.87,US,Metals,0,0
+UX,UxC Uranium U3O8 Futures,250.0,1.0,USD,0.05,2.37,US,Metals,0,0
+GC,Gold Futures,100.0,1.0,USD,0.1,2.42,US,Metals,0,0
+SI,Silver Futures,5000.0,1.0,USD,0.005,2.42,US,Metals,0,0
+PL,Platinum Futures,50.0,1.0,USD,0.1,2.42,US,Metals,0,0
+MGC,Micro Gold Futures,10.0,1.0,USD,0.1,0.77,US,Metals,0,0
+PA,Palladium Futures,100.0,1.0,USD,0.5,2.42,US,Metals,0,0
+SIL,Micro Silver Futures,1000.0,1.0,USD,0.005,1.27,US,Metals,0,0
+QO,E-mini Gold Futures,50.0,1.0,USD,0.25,1.62,US,Metals,0,0
+QI,E-mini Silver Futures,2500.0,1.0,USD,0.0125,1.62,US,Metals,0,0
+SGU,Shanghai Gold (USD) Futures,32.15,1.0,USD,0.1,2.42,US,Metals,0,0
+SIL_syn,Micro Silver Futures,1000.0,1.0,USD,0.005,1.27,US,Metals,0,0
+QI_syn,E-mini Silver Futures,2500.0,1.0,USD,0.0125,1.62,US,Metals,0,0
+MGC_syn,Micro Gold Futures,10.0,1.0,USD,0.1,0.77,US,Metals,0,0
+QO_syn,E-mini Gold Futures,50.0,1.0,USD,0.25,1.62,US,Metals,0,0
+QC_syn,E-mini Copper Futures,12500.0,1.0,USD,0.002,1.62,US,Metals,0,0
+MCD_syn,Micro CAD/USD Futures,10000.0,1.0,USD,0.0001,0.41,US,FX,0,0
+M6B_syn,Micro GBP/USD Futures,6250.0,1.0,USD,0.0001,0.41,US,FX,0,0
+M6A_syn,Micro AUD/USD Futures,10000.0,1.0,USD,0.0001,0.41,US,FX,0,0
+MSF_syn,Micro CHF/USD Futures,12500.0,1.0,USD,0.0001,0.41,US,FX,0,0
+M6E_syn,Micro EUR/USD Futures,12500.0,1.0,USD,0.0001,0.41,US,FX,0,0
+MES_syn,Micro E-mini S&P 500 Index Futures,5.0,1.0,USD,0.25,0.62,US,Equity,0,0
+M2K_syn,Micro E-mini Russell 2000 Index Futures,5.0,1.0,USD,0.1,0.62,US,Equity,0,0
+MNQ_syn,Micro E-mini Nasdaq-100 Index Futures,2.0,1.0,USD,0.25,0.62,US,Equity,0,0
+MYM_syn,Micro E-mini Dow Jones Industrial Average Index Futures,0.5,1.0,USD,1.0,0.62,US,Equity,0,0
+QH_syn,E-mini NY Harbor ULSD Futures,21000.0,1.0,USD,0.01,2.07,US,Energy,0,0
+MRB_syn,Micro RBOB Gasoline Futures,4200.0,1.0,USD,0.0001,0.87,US,Energy,0,0
+QU_syn,E-mini RBOB Gasoline Futures,21000.0,1.0,USD,0.001,2.07,US,Energy,0,0
+QG_syn,E-mini Natural Gas Futures,2500.0,1.0,USD,0.005,1.37,US,Energy,0,0
+MCL_syn,Micro WTI Crude Oil Futures,100.0,1.0,USD,0.01,0.77,US,Energy,0,0
+QM_syn,E-mini Crude Oil Futures,500.0,1.0,USD,0.025,2.07,US,Energy,0,0
+MBT_syn,Micro Bitcoin Futures,0.1,1.0,USD,5.0,3.27,US,Cryptocurrencies,0,0
+XK_syn,Mini Soybean Futures,1000.0,0.01,USD,0.00125,1.9,US,Ags,0,0
+XW_syn,Mini-sized Chicago SRW Wheat Futures,1000.0,0.01,USD,0.00125,1.9,US,Ags,0,0
+XC_syn,Mini-Corn Futures,1000.0,0.01,USD,0.00125,1.9,US,Ags,0,0
