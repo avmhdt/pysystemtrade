@@ -73,6 +73,32 @@ def send_mail_pdfs(preamble: str, filelist: List[str], subject: str):
     _send_msg(msg)
 
 
+def send_mail_attachments(preamble: str, filelist: List[str], subject: str):
+    """
+    Sends an email of files with preamble and subject line
+    """
+
+    # Create a text/plain message
+    msg = MIMEMultipart()
+    msg["Subject"] = subject
+    msg.preamble = preamble
+
+    for _file in filelist:
+        fp = open(_file, "rb")
+        if _file[-3:] == "pdf":
+            attach = MIMEApplication(fp.read(), "pdf")
+            fp.close()
+            attach.add_header("Content-Disposition", "attachment", filename="file.pdf")
+        elif _file[-3:] == "csv":
+            attach = MIMEApplication(fp.read(), "csv")
+            fp.close()
+            attach.add_header("Content-Disposition", "attachment", filename=_file.strip('_tempfile').split('_')[-1])
+
+        msg.attach(attach)
+
+    _send_msg(msg)
+
+
 def _send_msg(msg: MIMEMultipart):
     """
     Send a message composed by other things

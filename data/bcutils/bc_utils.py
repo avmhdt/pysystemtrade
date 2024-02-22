@@ -306,7 +306,7 @@ def get_barchart_downloads(
             if 'days_count' in instr_config:
                 days_count = instr_config['days_count']
             else:
-                days_count = 120
+                days_count = 3660 #120
 
             result = save_prices_for_contract(contract, session, download_dir, inv_contract_map,
                                               tick_date=tick_date, days=days_count, dry_run=dry_run)
@@ -429,7 +429,7 @@ def download_barchart_prices_for_contract_map(
         create_bc_session(config_obj=bc_config),
         contract_map=contract_map,
         save_directory=save_directory,
-        start_year=this_year,
+        start_year=2018,#this_year,
         end_year=this_year + 1,
         dry_run=False,
         force_daily=force_daily,

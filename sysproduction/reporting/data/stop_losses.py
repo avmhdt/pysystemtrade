@@ -149,16 +149,21 @@ def get_stop_loss_overrides_and_delay_days_as_df(data: dataBlob):
     overrides = list(stop_loss_overrides.values())
     delay_days = [value.delay_days for value in corresponding_delay_days]
 
-    overrides_and_delays = OverridesAndDelays(
-        instrument_code=instrument_codes,
-        strategy_name=strategy_names,
-        override=overrides,
-        delay_days=delay_days,
-    )
+    if len(delay_days) > 0:
+        overrides_and_delays = OverridesAndDelays(
+            instrument_code=instrument_codes,
+            strategy_name=strategy_names,
+            override=overrides,
+            delay_days=delay_days,
+        )
 
-    tuple_object = transfer_object_attributes(overrideDelayDaysData, overrides_and_delays)
+        tuple_object = transfer_object_attributes(overrideDelayDaysData, overrides_and_delays)
+        df = make_df_from_list_of_named_tuple(overrideDelayDaysData, [tuple_object])
 
-    return tuple_object
+    else:
+        df = pd.DataFrame()
+
+    return df
 
 
 def get_stop_loss_overrides_from_dict_of_all_overrides(

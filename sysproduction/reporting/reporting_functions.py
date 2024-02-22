@@ -26,17 +26,25 @@ from syslogdiag.email_via_db_interface import (
 
 from sysproduction.reporting.report_configs import reportConfig
 
+from pylatex import (
+    Document, Section, Subsection, Tabular, Math, TikZ, Axis,
+    Plot, Figure, Matrix, Alignat, NoEscape, NewLine, Command,
+    PageStyle, Head, Foot, Itemize, LineBreak
+)
+from pylatex.utils import italic
+
 
 figure = namedtuple("figure", "pdf_filename")
 
 
 class ParsedReport(object):
     def __init__(
-        self, text: str = arg_not_supplied, pdf_filename: str = arg_not_supplied
+        self, text: str = arg_not_supplied, pdf_filename: str = arg_not_supplied, csv_table_filenames: list = arg_not_supplied,
     ):
 
         self._text = text
         self._pdf_filename = pdf_filename
+        self._csv_table_filenames = csv_table_filenames
 
     @property
     def contains_pdf(self) -> bool:
@@ -49,6 +57,14 @@ class ParsedReport(object):
     @property
     def pdf_filename(self) -> str:
         return self._pdf_filename
+
+    @property
+    def csv_tables_filenames(self) -> list:
+        return self._csv_table_filenames
+
+    @property
+    def contains_csv_tables(self) -> bool:
+        return self.csv_tables_filenames is not arg_not_supplied and len(self.csv_tables_filenames) > 0
 
 
 def run_report(report_config: reportConfig, data: dataBlob = arg_not_supplied):
@@ -100,7 +116,8 @@ def parse_report_results(data: dataBlob, report_results: list) -> ParsedReport:
     if report_contains_figures(report_results):
         output_string = parse_report_results_contains_figures(data, report_results)
     else:
-        output_string = parse_report_results_contains_text(report_results)
+        # output_string = parse_report_results_contains_text(report_results)
+        output_string = parse_report_results_contains_text_latex(data, report_results)
 
     return output_string
 
@@ -134,6 +151,55 @@ def parse_report_results_contains_text(report_results: list) -> ParsedReport:
         output_string = output_string + parsed_item
 
     parsed_report = ParsedReport(text=output_string)
+
+    return parsed_report
+
+
+def parse_report_results_contains_text_latex(data: dataBlob, report_results):
+    """
+    Parse report results into latex pdf for display, email, or christmas present
+
+    :param report_results: list of header, body or table
+    :return: String, with more \n than you can shake a stick at
+    """
+    geometry_options = {"paper": "a2paper", "margin": "1in"}
+    doc = Document(geometry_options=geometry_options)
+
+    output_text = ""
+    csv_table_filenames = []
+    for report_item in report_results:
+        if isinstance(report_item, header):
+            if report_item == report_results[0]:
+                parsed_item = parse_header_latex(report_item)
+            else:
+                parsed_item = parse_section_latex(report_item)
+
+        elif isinstance(report_item, body_text):
+            parsed_item = parse_body_latex(report_item)
+        elif isinstance(report_item, table):
+            parsed_item = parse_table_latex(data, report_item)
+        else:
+            parsed_item = "doc.append(\"%s failed to parse in report\")\ndoc.append(NewLine())\n" % str(report_item)
+
+        if isinstance(parsed_item, tuple):
+            csv_table_filenames += parsed_item[0]
+            parsed_item = parsed_item[-1]
+
+        output_text = output_text + parsed_item
+
+    # End of report:
+    # doc.append(NewLine())
+    output_text = "doc.append(Command(\"huge\"))\n\n" + output_text
+    output_text = output_text + "doc.append(NoEscape(r\"\\noindent\\rule{\\textwidth}{1pt}\"))\n"
+    # output_text = output_text + "doc.change_document_style(\"header\")\n"
+    output_text = (output_text + "doc.append(Command(\"centering\"))\ndoc.append(Command(\"Huge\"))\n" +
+                   "doc.append(\" \")\ndoc.append(NewLine())\ndoc.append(\"END OF REPORT\")\n")
+    print(output_text)
+    exec(output_text)
+    temp_filename = _generate_temp_pdf_filename(data)
+    doc.generate_pdf(temp_filename[:-4], clean_tex=False)
+
+    parsed_report = ParsedReport(pdf_filename=temp_filename, csv_table_filenames=csv_table_filenames)
 
     return parsed_report
 
@@ -173,6 +239,134 @@ def parse_header(report_header: header) -> str:
     header_text = centralise_text(report_header.Heading, header_line)
 
     return "\n%s\n%s\n%s\n\n\n" % (header_line, header_text, header_line)
+
+
+def parse_section_latex(report_section: header):
+    if report_section.Heading.upper() == "END OF REPORT":
+        section_string = ""
+    else:
+        section_string = "doc.append(NewLine())\nwith doc.create(Section(\"%s\")):\n\t" % report_section
+
+    return section_string
+
+
+def parse_header_latex(report_header: header):
+    # header_string = "doc.preamble.append(Command('title', \"%s\"))\n" % report_header
+    # header_string += "doc.append(NoEscape(r'\\maketitle'))\n"
+    header_string = ("doc.append(Command(\"centering\"))\ndoc.append(Command(\"Huge\"))\n" +
+                     "doc.append(\"%s\")\ndoc.append(NewLine())\ndoc.append(NewLine())\n" % report_header +
+                     "doc.append(Command(\"raggedright\"))\ndoc.append(Command(\"huge\"))\n")
+
+    return header_string
+
+
+def parse_body_latex(report_body: body_text):
+    report_body = str(report_body.Text).replace("_", r"\_").replace("&", r"\&").replace("$", r"\$").split('\n')
+    body_string = ""
+    itemize = False
+    for report_line in report_body:
+        if len(report_line) > 0:
+            if report_line[0] == '-':
+                if not itemize:
+                    body_string += "with doc.create(Itemize()) as itemize:\n"
+                    body_string += "\titemize.add_item(\"%s\")\n" % report_line[2:]
+                    itemize = True
+                else:
+                    body_string += "\titemize.add_item(\"%s\")\n" % report_line[2:]
+            else:
+                itemize = False
+                body_string += "\ndoc.append(NoEscape(\"%s \"))\n" % report_line
+                if report_line == report_body[-1]:
+                    body_string += "doc.append(NewLine())\n"
+        # else:
+        #     body_string += "doc.append(NewLine())\n"
+
+    # body_string = "doc.append(\"%s. \")\ndoc.append(NewLine())\n" * len(report_body)
+    # body_string = body_string % tuple(report_body)
+
+    return body_string
+
+
+def parse_table_latex(data: dataBlob, report_table: table):
+    table_header = report_table.Heading
+    # table_string = ("\ndoc.append(Command(\"centering\"))\ndoc.append(Command(\"Huge\"))\n" +
+    #                 "doc.append(\"%s\")\ndoc.append(NewLine())\ndoc.append(NewLine())\n" % table_header +
+    #                 "doc.append(Command(\"raggedright\"))\ndoc.append(Command(\"huge\"))\n")
+    table_string = "doc.append(\"%s\"); doc.append(NewLine())\n" % table_header
+    table_body = report_table.Body
+    table_body.dropna(axis=0, how='any', inplace=True)
+    if table_body.index.is_numeric():
+        # table_body.reset_index(inplace=True, drop=True)
+        table_body.index = [str(i) for i in table_body.index]
+
+    temp_filename = _generate_temp_pdf_filename(data)[:-4] + '_' + table_header.replace('_', ' ').replace('.', '-').replace('/', '') + ".csv"
+    table_body.to_csv(temp_filename)
+
+    '''
+    table_body = report_table.Body
+    table_body.dropna(axis=0, how='any', inplace=True)
+    if table_body.index.is_numeric():
+        # table_body.reset_index(inplace=True, drop=True)
+        table_body.index = [str(i) for i in table_body.index]
+
+    if len(table_body) == 0:
+        return "doc.append(\" - Empty DataFrame - \")\n"
+
+    print("\n\n\n\n%s\n\n\n\n" % table_body)
+
+    if table_body.ndim > 1:
+        table_cols_before = table_body.shape[1] + 1
+        table_body.rename(columns=dict(zip(table_body.columns, [str(col).replace(' ', '_') for col in table_body.columns])), inplace=True)
+        for j, col in table_body.iteritems():
+            table_body[j] = pd.Series([str(table_body[j].iloc[i]).replace(' ', '_') for i in range(len(col))])
+
+        table_body = table_body.to_string(sparsify=False).lstrip()
+        table_cols = len(table_body.split('\n')[-1].split())
+    else:
+        table_cols_before = 1
+        table_body = pd.Series([str(table_body.iloc[i]).replace(' ', '_') for i in range(len(table_body))])
+        table_body = table_body.to_string().lstrip()
+        table_cols = table_cols_before + 1
+
+    # table_cols = table_body.shape[1] + 1
+    # table_rows = table_body.shape[0]
+
+    print(table_body)
+
+    table_header = (
+        "with doc.create(Subsection(\"%s\")):\n\t\tdoc.append(Command(\"centering\"))\n\t\tdoc.append(Command(\"scriptsize\"))\n\t\twith doc.create(Tabular(\"%s\")) as table:\n\t\t\t" % (
+            report_table.Heading.replace("_", " ").replace("&", r"\&").replace("$", r"\$"), '|c' * table_cols + '|'
+        )
+    )
+
+    table_string = table_body.split('\n')
+    for i in range(len(table_string)):
+        if i == 0:
+            table_string_i_split = table_string[i].split()
+            empty_spaces = table_cols - len(table_string_i_split)
+            if empty_spaces < 0:
+                empty_spaces = 0
+
+            table_string[i] = (" \", \"" * empty_spaces + "\", \"".join(table_string_i_split))
+
+        else:
+            table_string[i] = "\", \"".join(table_string[i].split())
+
+        if i < len(table_string) - 1:
+            table_string[i] = table_string[i] + "\"))\n\t\t\ttable.add_row((\""
+
+    table_string = ''.join(table_string)
+    table_string = (table_header +
+                    "table.add_hline()\n\t\t\ttable.add_row((\"" +
+                    table_string +
+                    "\"))\n\t\t\ttable.add_hline()\n" +
+                    "\ndoc.append(Command(\"centerline\", arguments=NewLine()))\n" + # arguments=NoEscape(\"\\rule{500pt, 1pt}\"))
+                    "\ndoc.append(Command(\"huge\"))\ndoc.append(Command(\"raggedright\"))\n")
+
+    return table_string
+    '''
+
+    return [temp_filename], table_string
 
 
 def parse_report_results_contains_figures(
@@ -247,11 +441,17 @@ def email_report(
     parsed_report: ParsedReport, report_config: reportConfig, data: dataBlob
 ):
 
-    if parsed_report.contains_pdf:
+    if parsed_report.contains_pdf or parsed_report.contains_csv_tables:
+        filename = []
+        if parsed_report.contains_pdf:
+            filename += [parsed_report.pdf_filename]
+        if parsed_report.contains_csv_tables:
+            filename += parsed_report.csv_tables_filenames
+
         send_production_mail_msg_attachment(
             body="Report attached",
             subject=report_config.title,
-            filename=parsed_report.pdf_filename,
+            filename=filename,
         )
     else:
         send_production_mail_msg(
@@ -344,3 +544,4 @@ def _generate_temp_pdf_filename(
     full_filename = os.path.join(use_directory_resolved, filename)
 
     return full_filename
+

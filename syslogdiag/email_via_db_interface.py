@@ -5,18 +5,20 @@ from syscore.dateutils import SECONDS_PER_DAY
 from syscore.exceptions import missingData
 from syslogdiag.mongo_email_control import mongoEmailControlData
 
-from syslogdiag.emailing import send_mail_msg, send_mail_pdfs
+from syslogdiag.emailing import send_mail_msg, send_mail_pdfs, send_mail_attachments
 
 from syscore.fileutils import resolve_path_and_filename_for_package
 from syscore.interactive.display import landing_strip
 
 
-def send_production_mail_msg_attachment(body: str, subject: str, filename: str):
+def send_production_mail_msg_attachment(body: str, subject: str, filename):
     """
     Doesn't check, doesn't store
     """
-
-    send_mail_pdfs(body, subject=subject, filelist=[filename])
+    if isinstance(filename, str):
+        send_mail_attachments(body, subject=subject, filelist=[filename])
+    elif isinstance(filename, list):
+        send_mail_attachments(body, subject=subject, filelist=filename)
 
 
 def send_production_mail_msg(data, body: str, subject: str, email_is_report=False):
